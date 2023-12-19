@@ -1,6 +1,7 @@
 import './style.css';
 
 const saveFloatLocalStorage = (key, getter) => {
+  return null;
   window.addEventListener('beforeunload', () => {
     localStorage.setItem(key, JSON.stringify(getter()));
   });
@@ -14,7 +15,7 @@ const saveFloatLocalStorage = (key, getter) => {
 const now = new Date(Date.now());
 
 // const BIG_BANG_YEAR = -13.8 * 1000000000;
-const BIG_BANG_YEAR = 1992;
+const BIG_BANG_YEAR = 1900;
 
 class TimelimeDate {
   constructor(year, month = 0, day = 1) {
@@ -103,8 +104,20 @@ class TimelimeDate {
   }
 }
 
+class Transform {
+  constructor() {
+    this.scale = 1;
+    this.offset = 0;
+  }
+
+  get matrix3() {
+    return [this.scale, 0, 0, this.scale, this.offset, 0, 0, 0, 0, 1];
+  }
+}
+
 class Timeline {
   constructor() {
+    // creation domElement
     this.domElement = document.createElement('canvas');
     this.domElement.classList.add('timeline');
 
@@ -120,48 +133,22 @@ class Timeline {
       now.getDate()
     );
 
-    // ctx transform
-
-    // translation
-    let startTranslation = 0;
-    let translation =
+    const transform = new Transform();
+    transform.offset =
       saveFloatLocalStorage('timeline_translation', () => {
-        return translation;
+        return transform.offset;
       }) || 0;
-    let isDragging = false;
-
-    this.domElement.addEventListener('mousedown', (event) => {
-      isDragging = true;
-      startTranslation = event.clientX - translation;
-    });
-
-    this.domElement.addEventListener('mousemove', (event) => {
-      if (isDragging) {
-        translation = event.clientX - startTranslation;
-      }
-    });
-
-    window.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
-
-    // scale
-    let scale =
+    transform.scale =
       saveFloatLocalStorage('timeline_scale', () => {
-        return scale;
+        return transform.scale;
       }) || 1;
 
-    this.domElement.addEventListener('wheel', (event) => {
-      scale -= event.deltaY * 0.002;
-      console.log(scale);
-    });
+    const draw = () => {
+      const dayHeight = (1 / transform.scale) * 100;
+      const monthHeight = (1 / transform.scale) * 200;
+      const yearHeight = (1 / transform.scale) * 300;
 
-    console.log(minDate, maxDate);
-
-    // update
-    const tick = () => {
-      // TODO framerate
-      requestAnimationFrame(tick);
+      // console.log(transform.scale, dayHeight, monthHeight, yearHeight);
 
       const ctx = this.domElement.getContext('2d');
 
@@ -169,41 +156,112 @@ class Timeline {
 
       ctx.save();
 
-      ctx.translate(translation, 0);
-      ctx.scale(scale, scale);
+      ctx.transform(
+        transform.scale,
+        0,
+        0,
+        transform.scale,
+        transform.offset,
+        0
+      );
 
-      ctx.beginPath();
-      // 10 unit => 1 day
-      // minDate => x = 0
-      ctx.lineTo(0, 0);
-
-      let cursor = 0;
-      for (let year = minDate.year; year <= maxDate.year; year++) {
-        ctx.fillText(year, cursor, 200);
-        for (let month = 0; month < 12; month++) {
-          ctx.fillText(TimelimeDate.monthToString(month), cursor, 150);
-          const dayCount = TimelimeDate.dayCount(year, month);
-          for (let day = 1; day <= dayCount; day++) {
-            ctx.fillText(day, cursor, 120);
-            const size = day == 1 ? (!month ? 300 : 200) : 100;
-
-            ctx.lineTo(cursor, size);
-            ctx.lineTo(cursor, 0);
-            cursor += 50;
-            ctx.lineTo(cursor, 0);
+      // timeline background
+      {
+        let widthTimeline = 0;
+        for (let year = minDate.year; year <= maxDate.year; year++) {
+          for (let month = 0; month < 12; month++) {
+            const dayCount = TimelimeDate.dayCount(year, month);
+            for (let day = 1; day <= dayCount; day++) {
+              widthTimeline += 50;
+            }
           }
         }
+        ctx.fillStyle = 'gray';
+        ctx.fillRect(0, 0, widthTimeline, yearHeight);
       }
 
-      ctx.closePath();
+      // timeline day/month/year
+      {
+        ctx.beginPath();
+        // 10 unit => 1 day
+        // minDate => x = 0
+        ctx.lineTo(0, 0);
 
-      ctx.stroke();
+        let cursor = 0;
+        ctx.fillStyle = 'white';
 
-      // ctx.fillRect(0, 0, 100, 100);
+        for (let year = minDate.year; year <= maxDate.year; year++) {
+          ctx.fillText(year, cursor, yearHeight);
+          for (let month = 0; month < 12; month++) {
+            ctx.fillText(
+              TimelimeDate.monthToString(month),
+              cursor,
+              monthHeight
+            );
+            const dayCount = TimelimeDate.dayCount(year, month);
+            for (let day = 1; day <= dayCount; day++) {
+              ctx.fillText(day, cursor, dayHeight);
+              const size =
+                day == 1 ? (!month ? yearHeight : monthHeight) : dayHeight;
+
+              ctx.lineTo(cursor, size);
+              ctx.lineTo(cursor, 0);
+              cursor += 50;
+              ctx.lineTo(cursor, 0);
+            }
+          }
+        }
+
+        ctx.closePath();
+
+        ctx.stroke();
+      }
 
       ctx.restore();
     };
-    tick();
+    draw();
+
+    this.domElement.addEventListener('wheel', (event) => {
+      transform.scale = Math.max(
+        Math.min(transform.scale - event.deltaY * 0.002, 10),
+        0.1
+      ); // TODO speed = f(transform.scale)
+      transform.offset -= -(transform.scale - 1) * event.clientX;
+      console.log(transform);
+      draw();
+    });
+
+    let isDragging = false;
+    let startTranslation = 0;
+
+    this.domElement.addEventListener('mousedown', (event) => {
+      isDragging = true;
+      startTranslation = event.clientX - transform.offset;
+    });
+
+    this.domElement.addEventListener('mousemove', (event) => {
+      if (isDragging) {
+        transform.offset = event.clientX - startTranslation;
+        draw();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    window.addEventListener('keydown', (event) => {
+      const speedTranslation = 200;
+      if (event.key == 'ArrowRight') {
+        transform.offset -= speedTranslation;
+        draw();
+      } else if (event.key == 'ArrowLeft') {
+        transform.offset += speedTranslation;
+        draw();
+      }
+    });
+
+    console.log(minDate, maxDate);
   }
 }
 
