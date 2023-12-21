@@ -15,5 +15,11 @@ window.addEventListener('keydown', (event) => {
   } else if (event.key == 'ArrowLeft') {
     timeline.translation += speedTranslation;
     timeline.drawCanvas();
+  } else if (event.key == 'ArrowUp') {
+    timeline.scale -= speedTranslation;
+    timeline.drawCanvas();
+  } else if (event.key == 'ArrowDown') {
+    timeline.scale += speedTranslation;
+    timeline.drawCanvas();
   }
 });

@@ -194,26 +194,26 @@ export class Timeline extends HTMLDivElement {
 
     this.minDayWidth = window.innerWidth / this.totalDays; // minScale shows between minDate and maxDate
 
-    this.maxScale = 20 / this.minDayWidth; // day width cant be superior at 20 px
+    this.maxScale = window.innerWidth / this.minDayWidth; // day width cant be superior window.innerWidth
 
-    this.translation =
-      localStorageFloat('timeline_translation', () => {
-        return this.translation;
-      }) || 0;
-    this.scale =
-      localStorageFloat('timeline_scale', () => {
-        return this.scale;
-      }) || 1;
+    this._translation = localStorageFloat('timeline_translation', () => {
+      return this.translation;
+    });
+    this._scale = localStorageFloat('timeline_scale', () => {
+      return this.scale;
+    });
+    if (this.scale == null) this.scale = 1;
+    if (this.translation == null) this.translation = 0;
 
     //DEBUG
-    this.scale = 1;
-    this.translation = 0;
+    // this.scale = 1;
+    // this.translation = 0;
 
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
 
-      const maxSpeed = this.totalDays / 1000000;
-      const minSpeed = Math.min(0.01, maxSpeed);
+      const maxSpeed = this.totalDays / 200000;
+      const minSpeed = Math.min(0.1, maxSpeed);
 
       // f(1) = maxSpeed
       // f(maxScale) = minSpeed
@@ -221,7 +221,7 @@ export class Timeline extends HTMLDivElement {
         maxSpeed -
         (maxSpeed - minSpeed) / (1 - Math.log10(this.maxScale)) +
         (Math.log10(this.scale) * (maxSpeed - minSpeed)) /
-          (1 - Math.log10(this.maxScale));
+          (1 - Math.log10(this.maxScale)); // TODO: not working very well waiting to handle BIG_BANG_YEAR
 
       this.scale = this.scale - event.deltaY * speed;
       this.translation = -(worldX * this.scale - event.clientX);
@@ -256,43 +256,88 @@ export class Timeline extends HTMLDivElement {
     const ctx = this.canvas.getContext('2d');
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    const dayHeight = this.canvas.height / 3;
-    const monthHeight = (this.canvas.height * 2) / 3;
-    const yearHeight = this.canvas.height;
-
-    // timeline day/month/year
     {
-      let cursor = 0;
-      ctx.beginPath();
-      ctx.moveTo(cursor + this.translation, 0);
+      // day rendering TODO make this generic
+      if (this.dayWidth >= 20) {
+        // timeline day/month/year
+        const dayHeight = this.canvas.height / 3;
+        const monthHeight = (this.canvas.height * 2) / 3;
+        const yearHeight = this.canvas.height;
+        let cursor = 0;
+        ctx.beginPath();
+        ctx.moveTo(cursor + this.translation, 0);
 
-      ctx.fillStyle = 'white';
+        ctx.fillStyle = 'white';
 
-      for (let year = this.minDate.year; year <= this.maxDate.year; year++) {
-        ctx.fillText(year, cursor + this.translation, yearHeight);
-        for (let month = 0; month < 12; month++) {
-          ctx.fillText(
-            TimelineDate.monthToString(month),
-            cursor + this.translation,
-            monthHeight
+        const computeFont = (text, maxWidth, maxFontSize) => {
+          const ratio = 100;
+          ctx.font = ratio + "px 'Segoe UI'";
+          const textWidth = ctx.measureText(text).width;
+          const fontSize = Math.min(
+            maxFontSize,
+            (ratio * maxWidth) / textWidth
           );
-          const monthDayCount = TimelineDate.monthDayCount(year, month);
-          for (let day = 1; day <= monthDayCount; day++) {
-            ctx.fillText(day, cursor + this.translation, dayHeight);
-            const size =
-              day == 1 ? (!month ? yearHeight : monthHeight) : dayHeight;
+          return Math.round(fontSize) + "px 'Segoe UI'";
+        };
 
-            ctx.lineTo(cursor + this.translation, size);
-            ctx.lineTo(cursor + this.translation, 0);
-            cursor += this.dayWidth;
-            ctx.lineTo(cursor + this.translation, 0);
+        for (let year = this.minDate.year; year <= this.maxDate.year; year++) {
+          ctx.font = computeFont(
+            year,
+            this.dayWidth * TimelineDate.yearDayCount(year),
+            this.canvas.height * 0.3
+          );
+          ctx.fillText(
+            year,
+            Math.min(
+              Math.max(0, cursor + this.translation),
+              cursor +
+                this.translation +
+                this.dayWidth * TimelineDate.yearDayCount(year) -
+                ctx.measureText(year).width
+            ),
+            yearHeight
+          );
+
+          // ctx.fillText(year, cursor + this.translation, yearHeight);
+          for (let month = 0; month < 12; month++) {
+            ctx.font = computeFont(
+              TimelineDate.monthToString(month),
+              this.dayWidth * TimelineDate.monthDayCount(year, month),
+              this.canvas.height * 0.3
+            );
+
+            ctx.fillText(
+              TimelineDate.monthToString(month),
+              Math.min(
+                Math.max(0, cursor + this.translation),
+                cursor +
+                  this.translation +
+                  this.dayWidth * TimelineDate.monthDayCount(year, month) -
+                  ctx.measureText(TimelineDate.monthToString(month)).width
+              ),
+              monthHeight
+            );
+
+            const monthDayCount = TimelineDate.monthDayCount(year, month);
+            for (let day = 1; day <= monthDayCount; day++) {
+              ctx.font = this.dayWidth * 0.5 + "px 'Segoe UI'";
+
+              const size =
+                day == 1 ? (!month ? yearHeight : monthHeight) : dayHeight;
+
+              ctx.fillText(day, cursor + this.translation, dayHeight);
+              ctx.lineTo(cursor + this.translation, size);
+              ctx.lineTo(cursor + this.translation, 0);
+              cursor += this.dayWidth;
+              ctx.lineTo(cursor + this.translation, 0);
+            }
           }
         }
+
+        ctx.closePath();
+
+        ctx.stroke();
       }
-
-      ctx.closePath();
-
-      ctx.stroke();
     }
   }
 
