@@ -4,7 +4,7 @@ export const localStorageFloat = (key, getter) => {
   });
 
   return localStorage.getItem(key)
-    ? isNumeric(parseFloat(localStorage.getItem(key)))
+    ? isNumeric(localStorage.getItem(key))
       ? parseFloat(localStorage.getItem(key))
       : null
     : null;
