@@ -82,6 +82,8 @@ export class TimelineDate {
     return result;
   }
 
+  add(dayCount) {}
+
   static assertYear(year) {
     return year <= parseInt(now.getFullYear()) && year >= BIG_BANG_YEAR;
   }
@@ -153,15 +155,24 @@ export class TimelineDate {
 
   static monthDayCount(year, month) {
     if (month % 2) {
-      // february/1 , april/3
       if (month == 1) {
+        // february
         return TimelineDate.yearIsLeap(year) ? 29 : 28;
-      } else {
+      } else if (month < 7) {
+        // april/3, june/5
         return 30;
+      } else {
+        // august / 7, october / 9, december / 11;
+        return 31;
       }
     } else {
-      // january/0, marth/2
-      return 31;
+      if (month < 6) {
+        // january/0, marth/2, may/4, july/6
+        return 31;
+      } else {
+        // september/8, november/10
+        return 30;
+      }
     }
   }
 }
@@ -255,6 +266,10 @@ export class Timeline extends HTMLDivElement {
 
     const ctx = this.canvas.getContext('2d');
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // compute min and max date on screen
+    const totalDayMinDate = -Math.floor(this.translation / this.dayWidth);
+    console.log(totalDayMinDate);
 
     {
       // day rendering TODO make this generic
