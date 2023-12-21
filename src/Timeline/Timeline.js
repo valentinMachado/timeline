@@ -4,8 +4,8 @@ import './timeline.css';
 /** @type {Date} */
 const now = new Date(Date.now());
 
-// const BIG_BANG_YEAR = -13.8 * 1000000000;
-const BIG_BANG_YEAR = 2000;
+const BIG_BANG_YEAR = -13.8 * 1000000000;
+// const BIG_BANG_YEAR = 2000;
 
 export class TimelineDate {
   constructor(year, month = 0, day = 1) {
@@ -52,8 +52,15 @@ export class TimelineDate {
     let result = 0;
 
     if (minDate.year != maxDate.year) {
+      const diffYear = maxDate.year - minDate.year;
+      const fourHundredYearCount = Math.floor(diffYear / 400);
+      result += fourHundredYearCount * TimelineDate.FOUR_HUNDRED_DAY_COUNT;
       // fill day in year diff
-      for (let year = minDate.year; year < maxDate.year; year++) {
+      for (
+        let year = minDate.year + fourHundredYearCount * 400;
+        year < maxDate.year;
+        year++
+      ) {
         result += TimelineDate.yearDayCount(year);
       }
 
@@ -235,6 +242,10 @@ export class TimelineDate {
     }
   }
 
+  static get FOUR_HUNDRED_DAY_COUNT() {
+    return 146097; // day count in 400 year is constant
+  }
+
   static monthDayCount(year, month) {
     if (month % 2) {
       if (month == 1) {
@@ -283,11 +294,9 @@ export class Timeline extends HTMLDivElement {
       now.getDate()
     );
 
-    console.time('total days computed');
-    this.totalDays = this.maxDate.diffDayCount(this.minDate); // number of day between min and max
-    console.timeEnd('total days computed');
+    this.totalDayCount = this.maxDate.diffDayCount(this.minDate); // number of day between min and max
 
-    this.minDayWidth = window.innerWidth / this.totalDays; // minScale shows between minDate and maxDate
+    this.minDayWidth = window.innerWidth / this.totalDayCount; // minScale shows between minDate and maxDate
 
     this.maxScale = window.innerWidth / this.minDayWidth; // day width cant be superior window.innerWidth
 
@@ -307,7 +316,7 @@ export class Timeline extends HTMLDivElement {
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
 
-      const maxSpeed = this.totalDays / 200000;
+      const maxSpeed = this.totalDayCount / 200000;
       const minSpeed = Math.min(0.1, maxSpeed);
 
       // f(1) = maxSpeed
@@ -346,6 +355,7 @@ export class Timeline extends HTMLDivElement {
   }
 
   drawCanvas() {
+    return;
     console.time('draw canvas');
 
     const ctx = this.canvas.getContext('2d');
@@ -497,7 +507,7 @@ export class Timeline extends HTMLDivElement {
   set translation(value) {
     this._translation = Math.round(
       Math.max(
-        -(this.totalDays * this.dayWidth - window.innerWidth), // TODO remove window.innerWidth
+        -(this.totalDayCount * this.dayWidth - window.innerWidth), // TODO remove window.innerWidth
         Math.min(value, 0)
       )
     );

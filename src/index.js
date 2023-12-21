@@ -3,6 +3,7 @@ import './style.css';
 
 console.time('timeline created');
 const timeline = new Timeline();
+console.info(timeline.totalDayCount);
 console.timeEnd('timeline created');
 document.body.appendChild(timeline);
 
