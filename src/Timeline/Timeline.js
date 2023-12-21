@@ -5,7 +5,7 @@ import './timeline.css';
 const now = new Date(Date.now());
 
 // const BIG_BANG_YEAR = -13.8 * 1000000000;
-const BIG_BANG_YEAR = 2023;
+const BIG_BANG_YEAR = 2000;
 
 export class TimelineDate {
   constructor(year, month = 0, day = 1) {
@@ -192,6 +192,10 @@ export class Timeline extends HTMLDivElement {
 
     this.totalDays = this.maxDate.diffDayCount(this.minDate); // number of day between min and max
 
+    this.minDayWidth = window.innerWidth / this.totalDays; // minScale shows between minDate and maxDate
+
+    this.maxScale = 20 / this.minDayWidth; // day width cant be superior at 20 px
+
     this.translation =
       localStorageFloat('timeline_translation', () => {
         return this.translation;
@@ -207,7 +211,19 @@ export class Timeline extends HTMLDivElement {
 
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
-      this.scale = this.scale - event.deltaY * 0.002; // TODO speed = f(this.scale) log ?
+
+      const maxSpeed = this.totalDays / 1000000;
+      const minSpeed = Math.min(0.01, maxSpeed);
+
+      // f(1) = maxSpeed
+      // f(maxScale) = minSpeed
+      const speed =
+        maxSpeed -
+        (maxSpeed - minSpeed) / (1 - Math.log10(this.maxScale)) +
+        (Math.log10(this.scale) * (maxSpeed - minSpeed)) /
+          (1 - Math.log10(this.maxScale));
+
+      this.scale = this.scale - event.deltaY * speed;
       this.translation = -(worldX * this.scale - event.clientX);
       this.drawCanvas();
     });
@@ -286,7 +302,7 @@ export class Timeline extends HTMLDivElement {
   }
 
   set scale(value) {
-    this._scale = Math.max(Math.min(value, 10), 1);
+    this._scale = Math.max(Math.min(value, this.maxScale), 1);
   }
 
   // translation property
@@ -302,7 +318,7 @@ export class Timeline extends HTMLDivElement {
   }
 
   get dayWidth() {
-    return 30 * this.scale;
+    return this.minDayWidth * this.scale;
   }
 }
 
