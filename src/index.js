@@ -1,7 +1,9 @@
 import { Timeline } from './Timeline/Timeline';
 import './style.css';
 
+console.time('timeline created');
 const timeline = new Timeline();
+console.timeEnd('timeline created');
 document.body.appendChild(timeline);
 
 // DEBUG

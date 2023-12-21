@@ -5,7 +5,7 @@ import './timeline.css';
 const now = new Date(Date.now());
 
 // const BIG_BANG_YEAR = -13.8 * 1000000000;
-const BIG_BANG_YEAR = 2020;
+const BIG_BANG_YEAR = 2000;
 
 export class TimelineDate {
   constructor(year, month = 0, day = 1) {
@@ -78,7 +78,6 @@ export class TimelineDate {
       }
     }
 
-    console.log('diff', minDate, maxDate, result);
     return result;
   }
 
@@ -284,7 +283,9 @@ export class Timeline extends HTMLDivElement {
       now.getDate()
     );
 
+    console.time('total days computed');
     this.totalDays = this.maxDate.diffDayCount(this.minDate); // number of day between min and max
+    console.timeEnd('total days computed');
 
     this.minDayWidth = window.innerWidth / this.totalDays; // minScale shows between minDate and maxDate
 
@@ -345,27 +346,24 @@ export class Timeline extends HTMLDivElement {
   }
 
   drawCanvas() {
-    console.log('draw canvas', this.scale, this.translation);
+    console.time('draw canvas');
 
     const ctx = this.canvas.getContext('2d');
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     // compute min and max date on screen
+    console.time('compute min and max date on screen');
     const minDateOnScreen = this.minDate
       .clone()
       .add(Math.floor(-this.translation / this.dayWidth));
     const maxDateOnScreen = minDateOnScreen
       .clone()
       .add(Math.ceil(window.innerWidth / this.dayWidth));
-    console.log(
-      this.translation,
-      minDateOnScreen.toString(),
-      maxDateOnScreen.toString()
-    );
+    console.timeEnd('compute min and max date on screen');
 
     {
       // day rendering TODO make this generic
-      if (this.dayWidth >= 20 || true) {
+      if (this.dayWidth >= 20) {
         // timeline day/month/year
         const dayHeight = this.canvas.height / 3;
         const monthHeight = (this.canvas.height * 2) / 3;
@@ -478,6 +476,8 @@ export class Timeline extends HTMLDivElement {
         ctx.stroke();
       }
     }
+
+    console.timeEnd('draw canvas');
   }
 
   // scale property
