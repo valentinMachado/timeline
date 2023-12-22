@@ -140,7 +140,14 @@ export class TimelineDate {
     if (this.month != 0 || this.day != 1 || dayCount <= 0)
       throw new Error('year not filled properly');
 
-    // add as many year as possible
+    // add as many 400 years as possible
+    const fourHundredYearCount = Math.floor(
+      dayCount / TimelineDate.FOUR_HUNDRED_DAY_COUNT
+    );
+    this.year += fourHundredYearCount * 400;
+    dayCount -= fourHundredYearCount * TimelineDate.FOUR_HUNDRED_DAY_COUNT;
+
+    // add rest of years as possible
     let currentYearDayCount = TimelineDate.yearDayCount(this.year);
     while (dayCount >= currentYearDayCount) {
       dayCount -= currentYearDayCount;
@@ -310,8 +317,8 @@ export class Timeline extends HTMLDivElement {
     if (this.translation == null) this.translation = 0;
 
     //DEBUG
-    this.scale = 1;
-    this.translation = 0;
+    // this.scale = 1;
+    // this.translation = 0;
 
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
@@ -355,8 +362,10 @@ export class Timeline extends HTMLDivElement {
   }
 
   drawCanvas() {
-    return;
     console.time('draw canvas');
+
+    console.log('translation', this.translation);
+    console.log('scale', this.scale);
 
     const ctx = this.canvas.getContext('2d');
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -371,14 +380,20 @@ export class Timeline extends HTMLDivElement {
       .add(Math.ceil(window.innerWidth / this.dayWidth));
     console.timeEnd('compute min and max date on screen');
 
+    console.log(
+      'draw between',
+      minDateOnScreen.toString(),
+      maxDateOnScreen.toString()
+    );
+
     {
       // day rendering TODO make this generic
       if (this.dayWidth >= 20) {
         // timeline day/month/year
-        const dayHeight = this.canvas.height / 3;
-        const monthHeight = (this.canvas.height * 2) / 3;
-        const yearHeight = this.canvas.height;
-        let cursor = 0;
+
+        const xMinDate =
+          this.minDate.diffDayCount(minDateOnScreen) * this.dayWidth;
+        let cursor = xMinDate; // initialize
         ctx.beginPath();
         ctx.moveTo(cursor + this.translation, 0);
 
@@ -395,15 +410,11 @@ export class Timeline extends HTMLDivElement {
           return Math.round(fontSize) + "px 'Segoe UI'";
         };
 
-        for (let year = this.minDate.year; year <= this.maxDate.year; year++) {
-          if (year < minDateOnScreen.year) {
-            cursor += this.dayWidth * TimelineDate.yearDayCount(year);
-            continue;
-          }
-          if (year > maxDateOnScreen.year) {
-            break;
-          }
-
+        for (
+          let year = minDateOnScreen.year;
+          year <= maxDateOnScreen.year;
+          year++
+        ) {
           ctx.font = computeFont(
             year,
             this.dayWidth * TimelineDate.yearDayCount(year),
@@ -418,14 +429,12 @@ export class Timeline extends HTMLDivElement {
                 this.dayWidth * TimelineDate.yearDayCount(year) -
                 ctx.measureText(year).width
             ),
-            yearHeight
+            this.canvas.height
           );
 
-          // ctx.fillText(year, cursor + this.translation, yearHeight);
           for (let month = 0; month < 12; month++) {
             if (year == minDateOnScreen.year && month < minDateOnScreen.month) {
-              cursor += TimelineDate.monthDayCount(year, month) * this.dayWidth;
-              continue;
+              continue; // cursor is initialized with minDateOnScreen
             }
 
             if (year == maxDateOnScreen.year && month > maxDateOnScreen.month)
@@ -446,18 +455,20 @@ export class Timeline extends HTMLDivElement {
                   this.dayWidth * TimelineDate.monthDayCount(year, month) -
                   ctx.measureText(TimelineDate.monthToString(month)).width
               ),
-              monthHeight
+              (this.canvas.height * 2) / 3
             );
 
-            const monthDayCount = TimelineDate.monthDayCount(year, month);
-            for (let day = 1; day <= monthDayCount; day++) {
+            for (
+              let day = 1;
+              day <= TimelineDate.monthDayCount(year, month);
+              day++
+            ) {
               if (
                 year == minDateOnScreen.year &&
                 month == minDateOnScreen.month &&
                 day < minDateOnScreen.day
               ) {
-                cursor += this.dayWidth;
-                continue;
+                continue; // cursor is initialized with minDateOnScreen
               }
 
               if (
@@ -470,9 +481,17 @@ export class Timeline extends HTMLDivElement {
               ctx.font = this.dayWidth * 0.5 + "px 'Segoe UI'";
 
               const size =
-                day == 1 ? (!month ? yearHeight : monthHeight) : dayHeight;
+                day == 1
+                  ? !month
+                    ? this.canvas.height
+                    : (this.canvas.height * 2) / 3
+                  : this.canvas.height / 3;
 
-              ctx.fillText(day, cursor + this.translation, dayHeight);
+              ctx.fillText(
+                day,
+                cursor + this.translation,
+                this.canvas.height / 3
+              );
               ctx.lineTo(cursor + this.translation, size);
               ctx.lineTo(cursor + this.translation, 0);
               cursor += this.dayWidth;
