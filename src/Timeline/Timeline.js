@@ -4,8 +4,8 @@ import './timeline.css';
 /** @type {Date} */
 const now = new Date(Date.now());
 
-const BIG_BANG_YEAR = -13.8 * 1000000000;
-// const BIG_BANG_YEAR = 2000;
+// const BIG_BANG_YEAR = -13.8 * 1000000000;
+const BIG_BANG_YEAR = 2000;
 
 export class TimelineDate {
   constructor(year, month = 0, day = 1) {
@@ -16,7 +16,16 @@ export class TimelineDate {
     if (!TimelineDate.assert(this)) console.error(this, 'is not a vallid date');
   }
 
+  equals(timelineDate) {
+    return (
+      this.day == timelineDate.day &&
+      this.year == timelineDate.year &&
+      this.month == timelineDate.month
+    );
+  }
+
   isAfter(timelineDate) {
+    if (this.equals(timelineDate)) return false;
     if (this.year != timelineDate.year) {
       return this.year > timelineDate.year;
     } else {
@@ -36,10 +45,17 @@ export class TimelineDate {
   }
 
   isBefore(timelineDate) {
+    if (this.equals(timelineDate)) return false;
     return !this.isAfter(timelineDate);
   }
 
+  /**
+   *
+   * @param {TimelineDate} timelineDate
+   * @returns
+   */
   diffDayCount(timelineDate) {
+    if (this.equals(timelineDate)) return 0;
     let minDate, maxDate;
     if (this.isAfter(timelineDate)) {
       minDate = timelineDate;
@@ -51,38 +67,62 @@ export class TimelineDate {
 
     let result = 0;
 
-    if (minDate.year != maxDate.year) {
-      const diffYear = maxDate.year - minDate.year;
-      const fourHundredYearCount = Math.floor(diffYear / 400);
-      result += fourHundredYearCount * TimelineDate.FOUR_HUNDRED_DAY_COUNT;
-      // fill day in year diff
-      for (
-        let year = minDate.year + fourHundredYearCount * 400;
-        year < maxDate.year;
-        year++
-      ) {
-        result += TimelineDate.yearDayCount(year);
+    if (minDate.year == maxDate.year) {
+      // same year
+      if (minDate.month == maxDate.month) return maxDate.day - minDate.day; // same month
+
+      // month are different
+
+      // fill minDate month
+      result +=
+        TimelineDate.monthDayCount(minDate.year, minDate.month) - minDate.day;
+
+      // fill months separating min date month + 1 (cant be december) => max date month -1
+      for (let month = minDate.month + 1; month < maxDate.month; month++) {
+        result += TimelineDate.monthDayCount(minDate.year, month);
       }
 
-      // fill missing day of maxDate
-      for (let month = 0; month < maxDate.month; month++) {
-        result += TimelineDate.monthDayCount(maxDate.year, month);
-      }
-
+      // fill maxDate month
       result += maxDate.day;
     } else {
-      // year are equals
-      if (minDate.month != maxDate.month) {
-        // fill missing day of month
-        for (let month = minDate.month; month < maxDate.month; month++) {
-          result += TimelineDate.monthDayCount(maxDate.year, month);
-        }
+      // year are different
 
-        result += maxDate.day;
-      } else {
-        // month are equals
-        result = maxDate.day - minDate.day;
+      // fill minDate year
+
+      // fill min date month
+      result +=
+        TimelineDate.monthDayCount(minDate.year, minDate.month) - minDate.day;
+
+      // add remaining month if there is some => min date month is not december
+      for (let month = minDate.month + 1; month < 12; month++) {
+        result += TimelineDate.monthDayCount(minDate.year, month);
       }
+
+      // fill till 31 december of min date
+
+      // add remaining years between min date year + 1 and max date year -1
+
+      // add year 400 by 400 if there is enough (opti)
+      const diffYear = Math.max(maxDate.year - minDate.year - 2, 0); // minus 2 because min date year + 1 and max date year -1
+      const fourHundredYearCount = Math.floor(diffYear / 400);
+      result += fourHundredYearCount * TimelineDate.FOUR_HUNDRED_DAY_COUNT;
+
+      // add ones remaining
+      for (
+        let year = minDate.year + 1 + fourHundredYearCount * 400;
+        year < maxDate.year;
+        year++
+      )
+        result += TimelineDate.yearDayCount(year);
+
+      // fill max date year
+
+      // fill month from 0 => max date month - 1
+      for (let month = 0; month < maxDate.month; month++)
+        result += TimelineDate.monthDayCount(maxDate.year, month);
+
+      // fill max date month
+      result += maxDate.day;
     }
 
     return result;
@@ -172,7 +212,7 @@ export class TimelineDate {
 
   toString() {
     return (
-      this.day + ', ' + TimelineDate.monthToString(this.month) + ' ' + this.year
+      this.day + ' ' + TimelineDate.monthToString(this.month) + ' ' + this.year
     );
   }
 
@@ -258,7 +298,7 @@ export class TimelineDate {
       if (month == 1) {
         // february
         return TimelineDate.yearIsLeap(year) ? 29 : 28;
-      } else if (month < 7) {
+      } else if (month <= 5) {
         // april/3, june/5
         return 30;
       } else {
@@ -266,7 +306,7 @@ export class TimelineDate {
         return 31;
       }
     } else {
-      if (month < 6) {
+      if (month <= 6) {
         // january/0, marth/2, may/4, july/6
         return 31;
       } else {
@@ -303,7 +343,7 @@ export class Timeline extends HTMLDivElement {
 
     this.totalDayCount = this.maxDate.diffDayCount(this.minDate); // number of day between min and max
 
-    this.minDayWidth = window.innerWidth / this.totalDayCount; // minScale shows between minDate and maxDate
+    this.minDayWidth = window.innerWidth / this.totalDayCount; // minScale=1 shows between minDate and maxDate
 
     this.maxScale = window.innerWidth / this.minDayWidth; // day width cant be superior window.innerWidth
 
@@ -317,8 +357,8 @@ export class Timeline extends HTMLDivElement {
     if (this.translation == null) this.translation = 0;
 
     //DEBUG
-    // this.scale = 1;
-    // this.translation = 0;
+    this.scale = 1;
+    this.translation = 0;
 
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
@@ -538,3 +578,27 @@ export class Timeline extends HTMLDivElement {
 }
 
 window.customElements.define('timeline-div', Timeline, { extends: 'div' });
+
+// DEBUG unit test done here for now
+console.time('unit test');
+const someDate = new TimelineDate(BIG_BANG_YEAR, 5, 23);
+
+const days = [
+  1, 15, 30, 31, 32, 5, 10, 56, 12515, 11151818, 18181812, 365, 366, 364, 367,
+  12, 5485, 845, 184, 151, 85, 58,
+];
+
+days.sort((a, b) => a - b);
+
+days.forEach((d) => {
+  const td1 = someDate.clone().add(d);
+  if (td1.diffDayCount(someDate) != d) {
+    debugger;
+    const td2 = someDate.clone().add(d);
+    console.log(someDate.toString());
+    console.log(td1.toString());
+    console.log(td1.diffDayCount(someDate), '!=', d);
+    throw new Error('td1 diff should be d');
+  }
+});
+console.timeEnd('unit test');

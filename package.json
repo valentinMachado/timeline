@@ -7,7 +7,8 @@
     "reset": "rd -r .\\public\\dist && rd -r .\\package-lock.json && rd -r .\\node_modules && npm i",
     "build": "cross-env NODE_ENV=production webpack --config ./webpack.config.js",
     "build-dev": "cross-env NODE_ENV=development webpack --config ./webpack.config.js",
-    "dev": "cross-env NODE_ENV=development nodemon --watch ./src  --delay 2500ms ./bin/dev.js -e js,css"
+    "dev": "cross-env NODE_ENV=development nodemon --watch ./src  --delay 2500ms ./bin/dev.js -e js,css",
+    "test": "node ./test/unit.js"
   },
   "repository": {
     "type": "git",
