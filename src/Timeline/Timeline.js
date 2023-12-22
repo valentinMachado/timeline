@@ -1,11 +1,10 @@
-import { localStorageFloat } from '../utils';
+import { localStorageFloat, numberToLabel } from '../utils';
 import './timeline.css';
 
 /** @type {Date} */
 const now = new Date(Date.now());
 
-// const BIG_BANG_YEAR = -13.8 * 1000000000;
-const BIG_BANG_YEAR = 2000;
+const BIG_BANG_YEAR = -13.8 * 1000000000;
 
 export class TimelineDate {
   constructor(year, month = 0, day = 1) {
@@ -34,12 +33,7 @@ export class TimelineDate {
         return this.month > timelineDate.month;
       } else {
         // month are equals
-        if (this.day != timelineDate.day) {
-          return this.day > timelineDate.day;
-        } else {
-          // date are equals
-          return false;
-        }
+        return this.day > timelineDate.day; // day cant be equal
       }
     }
   }
@@ -54,7 +48,7 @@ export class TimelineDate {
    * @param {TimelineDate} timelineDate
    * @returns
    */
-  diffDayCount(timelineDate) {
+  diff(timelineDate) {
     if (this.equals(timelineDate)) return 0;
     let minDate, maxDate;
     if (this.isAfter(timelineDate)) {
@@ -212,7 +206,11 @@ export class TimelineDate {
 
   toString() {
     return (
-      this.day + ' ' + TimelineDate.monthToString(this.month) + ' ' + this.year
+      this.day +
+      ' ' +
+      TimelineDate.monthToString(this.month) +
+      ' ' +
+      numberToLabel(this.year)
     );
   }
 
@@ -341,7 +339,9 @@ export class Timeline extends HTMLDivElement {
       now.getDate()
     );
 
-    this.totalDayCount = this.maxDate.diffDayCount(this.minDate); // number of day between min and max
+    this.totalDayCount = this.maxDate.diff(this.minDate); // number of day between min and max
+    if (this.totalDayCount > Number.MAX_SAFE_INTEGER)
+      console.warn('total day count overflow');
 
     this.minDayWidth = window.innerWidth / this.totalDayCount; // minScale=1 shows between minDate and maxDate
 
@@ -357,8 +357,8 @@ export class Timeline extends HTMLDivElement {
     if (this.translation == null) this.translation = 0;
 
     //DEBUG
-    this.scale = 1;
-    this.translation = 0;
+    // this.scale = 1;
+    // this.translation = 0;
 
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
@@ -411,14 +411,12 @@ export class Timeline extends HTMLDivElement {
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     // compute min and max date on screen
-    console.time('compute min and max date on screen');
     const minDateOnScreen = this.minDate
       .clone()
       .add(Math.floor(-this.translation / this.dayWidth));
     const maxDateOnScreen = minDateOnScreen
       .clone()
       .add(Math.ceil(window.innerWidth / this.dayWidth));
-    console.timeEnd('compute min and max date on screen');
 
     console.log(
       'draw between',
@@ -432,7 +430,7 @@ export class Timeline extends HTMLDivElement {
         // timeline day/month/year
 
         const xMinDate =
-          this.minDate.diffDayCount(minDateOnScreen) * this.dayWidth;
+          this.minDate.diff(minDateOnScreen) * this.dayWidth;
         let cursor = xMinDate; // initialize
         ctx.beginPath();
         ctx.moveTo(cursor + this.translation, 0);
@@ -592,12 +590,12 @@ days.sort((a, b) => a - b);
 
 days.forEach((d) => {
   const td1 = someDate.clone().add(d);
-  if (td1.diffDayCount(someDate) != d) {
+  if (td1.diff(someDate) != d) {
     debugger;
     const td2 = someDate.clone().add(d);
     console.log(someDate.toString());
     console.log(td1.toString());
-    console.log(td1.diffDayCount(someDate), '!=', d);
+    console.log(td1.diff(someDate), '!=', d);
     throw new Error('td1 diff should be d');
   }
 });
