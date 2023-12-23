@@ -13,15 +13,15 @@ window.addEventListener('keydown', (event) => {
     console.log(timeline);
   } else if (event.key == 'ArrowRight') {
     timeline.translation -= speedTranslation;
-    timeline.drawCanvas();
+    timeline.update();
   } else if (event.key == 'ArrowLeft') {
     timeline.translation += speedTranslation;
-    timeline.drawCanvas();
+    timeline.update();
   } else if (event.key == 'ArrowUp') {
     timeline.scale -= speedTranslation;
-    timeline.drawCanvas();
+    timeline.update();
   } else if (event.key == 'ArrowDown') {
     timeline.scale += speedTranslation;
-    timeline.drawCanvas();
+    timeline.update();
   }
 });
