@@ -1,10 +1,9 @@
-import { localStorageFloat, numberToLabel } from '../utils';
+import { localStorageFloat, numberEquals, numberToLabel } from '../utils';
 import './timeline.css';
 
-/** @type {Date} */
-const now = new Date(Date.now());
-
-const BIG_BANG_YEAR = -13.8 * 1000000000;
+const MIN_CHUNK_YEARS = 1000000000; // min chunk years is the minimum precision the timeline can be display min and max year should multiple
+const MIN_YEAR = -14 * MIN_CHUNK_YEARS; // approximatly bing bang
+const MAX_YEAR = MIN_CHUNK_YEARS; // minimum chunk to wrap today
 
 export class TimelineDate {
   constructor(year, month = 0, day = 1) {
@@ -13,6 +12,20 @@ export class TimelineDate {
     this.day = parseInt(day);
 
     TimelineDate.assert(this);
+  }
+
+  set(year, month = 0, day = 1) {
+    this.year = parseInt(year);
+    this.month = parseInt(month);
+    this.day = parseInt(day);
+    return TimelineDate.assert(this);
+  }
+
+  copy(timelineDate) {
+    this.day = timelineDate.day;
+    this.month = timelineDate.month;
+    this.year = timelineDate.year;
+    return TimelineDate.assert(this);
   }
 
   equals(timelineDate) {
@@ -211,6 +224,9 @@ export class TimelineDate {
       this.month = 0;
       this.year++;
     }
+    if (this.isAfter(TimelineDate.MAX_TIMELINE_DATE))
+      this.copy(TimelineDate.MAX_TIMELINE_DATE); // cap
+
     return TimelineDate.assert(this);
   }
 
@@ -223,8 +239,10 @@ export class TimelineDate {
     this.month = 0;
     this.year += precision;
 
-    // return TimelineDate.assert(this);
-    return this
+    if (this.isAfter(TimelineDate.MAX_TIMELINE_DATE))
+      this.copy(TimelineDate.MAX_TIMELINE_DATE); // cap
+
+    return TimelineDate.assert(this);
   }
 
   dayCountToNextYears(precision) {
@@ -243,7 +261,7 @@ export class TimelineDate {
   }
 
   static assertYear(year) {
-    return year <= parseInt(now.getFullYear()) && year >= BIG_BANG_YEAR;
+    return year <= MAX_YEAR && year >= MIN_YEAR;
   }
 
   static assertMonth(month) {
@@ -362,6 +380,9 @@ export class TimelineDate {
   }
 }
 
+TimelineDate.MAX_TIMELINE_DATE = new TimelineDate(MAX_YEAR);
+TimelineDate.MIN_TIMELINE_DATE = new TimelineDate(MIN_YEAR);
+
 export class Timeline extends HTMLDivElement {
   constructor() {
     super();
@@ -383,21 +404,16 @@ export class Timeline extends HTMLDivElement {
       this.update();
     });
 
-    /** @type {TimelineDate} */
-    this.minDate = new TimelineDate(BIG_BANG_YEAR);
-
-    /** @type {TimelineDate} */
-    this.maxDate = new TimelineDate(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-
-    this.totalDayCount = this.maxDate.diff(this.minDate); // number of day between min and max
+    this.totalDayCount = TimelineDate.MAX_TIMELINE_DATE.diff(
+      TimelineDate.MIN_TIMELINE_DATE
+    ); // number of day between min and max
+    console.info('total days = ' + this.totalDayCount);
     if (this.totalDayCount > Number.MAX_SAFE_INTEGER)
       console.warn('total day count overflow');
 
     this.minDayWidth = window.innerWidth / this.totalDayCount; // minScale=1 shows between minDate and maxDate
+    if (this.minDayWidth < Number.EPSILON)
+      console.warn('min day width overflow');
 
     this.maxScale = window.innerWidth / this.minDayWidth; // day width cant be superior window.innerWidth
 
@@ -416,19 +432,7 @@ export class Timeline extends HTMLDivElement {
 
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
-
-      const maxSpeed = this.totalDayCount / 200000;
-      const minSpeed = Math.min(10, maxSpeed);
-
-      // f(1) = maxSpeed
-      // f(maxScale) = minSpeed
-      const speed =
-        maxSpeed -
-        (maxSpeed - minSpeed) / (1 - Math.log10(this.maxScale)) +
-        (Math.log10(this.scale) * (maxSpeed - minSpeed)) /
-          (1 - Math.log10(this.maxScale)); // TODO: not working very well waiting to handle BIG_BANG_YEAR
-
-      this.scale = this.scale - event.deltaY * speed;
+      this.scale *= -Math.abs(event.deltaY) / event.deltaY > 0 ? 2 : 0.5;
       this.translation = -(worldX * this.scale - event.clientX);
       this.update();
     });
@@ -462,9 +466,9 @@ export class Timeline extends HTMLDivElement {
     context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     // compute min and max date on screen
-    const minDateOnScreen = this.minDate
-      .clone()
-      .add(Math.floor(-this.translation / this.dayWidth));
+    const minDateOnScreen = TimelineDate.MIN_TIMELINE_DATE.clone().add(
+      Math.floor(-this.translation / this.dayWidth)
+    );
     const maxDateOnScreen = minDateOnScreen
       .clone()
       .add(Math.ceil(window.innerWidth / this.dayWidth));
@@ -474,120 +478,84 @@ export class Timeline extends HTMLDivElement {
       minDateOnScreen.toString(),
       maxDateOnScreen.toString()
     );
-    const xMinDate = this.minDate.diff(minDateOnScreen) * this.dayWidth;
 
-    if (this.dayWidth >= 50) {
-      this.drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        0,
-        this.canvas.height * 0.25,
-        10
-      );
+    const xMinDate =
+      Math.floor(-this.translation / this.dayWidth) * this.dayWidth;
 
-      this.drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.25,
-        this.canvas.height * 0.5,
-        1
-      );
+    let maxPrecision = MIN_CHUNK_YEARS;
 
-      this.drawCanvasMonths(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.5,
-        this.canvas.height * 0.75
-      );
+    while (
+      maxPrecision * TimelineDate.LARGER_YEAR_DAY_COUNT * this.dayWidth >
+      this.canvas.width
+    ) {
+      maxPrecision = Math.max(Math.round(maxPrecision * 0.1), 1);
+      if (numberEquals(maxPrecision, 1)) break;
+    }
 
-      this.drawCanvasDays(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.75,
-        this.canvas.height
-      );
-    } else if (TimelineDate.LARGER_MONTH_DAY_COUNT * this.dayWidth >= 150) {
-      this.drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        0,
-        this.canvas.height * 0.25,
-        100
-      );
-
-      this.drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.25,
-        this.canvas.height * 0.5,
-        10
-      );
-
-      this.drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.5,
-        this.canvas.height * 0.75,
-        1
-      );
-
-      this.drawCanvasMonths(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.75,
-        this.canvas.height
-      );
-    } else {
-      // only years recursively
-      let minPrecision = 1;
-      const MIN_SIZE_YEAR = window.innerWidth * 0.25; // random for now
-      while (
-        minPrecision * TimelineDate.LARGER_YEAR_DAY_COUNT * this.dayWidth <
-        MIN_SIZE_YEAR
+    if (numberEquals(maxPrecision, 1)) {
+      // draw year by year
+      if (
+        this.dayWidth * TimelineDate.LARGER_YEAR_DAY_COUNT <
+        this.canvas.width
       ) {
-        minPrecision *= 10;
+        // a year is inferior to canvas width => draw year and month
+        this.drawCanvasYears(
+          minDateOnScreen,
+          maxDateOnScreen,
+          xMinDate,
+          0,
+          this.canvas.height * 0.5,
+          1
+        );
+        this.drawCanvasMonths(
+          minDateOnScreen,
+          maxDateOnScreen,
+          xMinDate,
+          this.canvas.height * 0.5,
+          this.canvas.height
+        );
+      } else {
+        // a year is superior to canvas width => draw year, month and days
+        this.drawCanvasYears(
+          minDateOnScreen,
+          maxDateOnScreen,
+          xMinDate,
+          0,
+          this.canvas.height * 0.3,
+          1
+        );
+        this.drawCanvasMonths(
+          minDateOnScreen,
+          maxDateOnScreen,
+          xMinDate,
+          this.canvas.height * 0.3,
+          this.canvas.height * 0.6
+        );
+        this.drawCanvasDays(
+          minDateOnScreen,
+          maxDateOnScreen,
+          xMinDate,
+          this.canvas.height * 0.6,
+          this.canvas.height
+        );
       }
-      console.log('draw with min precision', minPrecision);
-
+    } else {
       this.drawCanvasYears(
         minDateOnScreen,
         maxDateOnScreen,
         xMinDate,
         0,
-        this.canvas.height * 0.25,
-        minPrecision * 1000
-      );
-      this.drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.25,
         this.canvas.height * 0.5,
-        minPrecision * 100
+        maxPrecision
       );
+
       this.drawCanvasYears(
         minDateOnScreen,
         maxDateOnScreen,
         xMinDate,
         this.canvas.height * 0.5,
-        this.canvas.height * 0.75,
-        minPrecision * 10
-      );
-      this.drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
-        xMinDate,
-        this.canvas.height * 0.75,
         this.canvas.height,
-        minPrecision
+        maxPrecision * 0.1
       );
     }
 
@@ -597,7 +565,7 @@ export class Timeline extends HTMLDivElement {
   drawCanvasDays(minDate, maxDate, xMinDate, yMin, yMax) {
     const context = this.canvas.getContext('2d');
 
-    context.font = this.dayWidth * 0.5 + "px 'Segoe UI'";
+    context.font = Math.min(this.dayWidth * 0.5, yMax - yMin) + "px 'Segoe UI'";
 
     let cursor = xMinDate;
     context.beginPath();
@@ -631,11 +599,7 @@ export class Timeline extends HTMLDivElement {
           )
             break;
 
-          context.fillText(
-            day,
-            cursor + this.translation + this.dayWidth / 3,
-            (yMin + yMax) * 0.5
-          );
+          context.fillText(day, cursor + this.translation, yMax);
           context.lineTo(cursor + this.translation, yMin);
           context.lineTo(cursor + this.translation, yMax);
           cursor += this.dayWidth;
@@ -659,29 +623,40 @@ export class Timeline extends HTMLDivElement {
       yMax - yMin
     );
 
-    let currentDate = minDate.clone();
     let cursor = xMinDate;
+    let currentDate = minDate.clone();
+    context.beginPath();
+    context.moveTo(cursor + this.translation, yMax);
 
-    while (currentDate.isBefore(maxDate)) {
+    const nextDate = minDate.clone();
+
+    while (nextDate.isBefore(maxDate) || nextDate.equals(maxDate)) {
+      nextDate.copy(currentDate).toNextMonth();
+
       const nextMonthX =
-        cursor +
-        this.translation +
-        currentDate.dayCountToNextMonth() * this.dayWidth;
-      const widthText = context.measureText(
-        TimelineDate.monthToString(currentDate.month)
-      ).width;
+        cursor + this.translation + currentDate.diff(nextDate) * this.dayWidth;
+
+      const text = TimelineDate.monthToString(currentDate.month);
+      const widthText = context.measureText(text).width;
 
       context.fillText(
-        TimelineDate.monthToString(currentDate.month),
-        widthText > nextMonthX
+        text,
+        cursor + this.translation + widthText > nextMonthX
           ? nextMonthX - widthText
           : Math.max(0, cursor + this.translation),
         yMax
       );
 
       cursor = nextMonthX - this.translation;
-      currentDate.toNextMonth();
+      context.lineTo(cursor + this.translation, yMax);
+      context.lineTo(cursor + this.translation, yMin);
+      context.lineTo(cursor + this.translation, yMax);
+      currentDate.copy(nextDate);
     }
+
+    context.lineTo(xMinDate, yMax);
+    context.closePath();
+    context.stroke();
   }
 
   /**
@@ -694,55 +669,68 @@ export class Timeline extends HTMLDivElement {
    * @param {*} precision
    */
   drawCanvasYears(minDate, maxDate, xMinDate, yMin, yMax, precision) {
-    if (precision >= Number.MAX_SAFE_INTEGER) return; // avoid crash
-
     const context = this.canvas.getContext('2d');
 
-    const precisionRound = (number) =>
+    const precisionRounded = (number) =>
       parseInt(Math.floor(number / precision) * precision);
 
-    let maxWidthText = -Infinity;
+    let maxText = '';
     for (
-      let year = precisionRound(minDate.year);
-      year <= precisionRound(maxDate.year);
+      let year = precisionRounded(minDate.year);
+      year <= precisionRounded(maxDate.year);
       year += precision
     ) {
-      const yearPrecision = precisionRound(year);
-      const widthText = context.measureText(numberToLabel(yearPrecision)).width;
-      if (widthText > maxWidthText) maxWidthText = widthText;
+      const text = numberToLabel(precisionRounded(year));
+      if (text.length > maxText.length) maxText = text;
     }
 
     context.font = Timeline.computeFont(
       context,
-      maxWidthText,
+      maxText,
       precision * TimelineDate.LARGER_YEAR_DAY_COUNT * this.dayWidth,
       yMax - yMin
     );
 
     let currentDate = minDate.clone();
     let cursor = xMinDate;
+    context.beginPath();
+    context.moveTo(cursor + this.translation, yMax);
 
-    while (currentDate.isBefore(maxDate)) {
+    const nextDate = new TimelineDate(0);
+    for (
+      let year = precisionRounded(minDate.year);
+      year <= precisionRounded(maxDate.year);
+      year += precision
+    ) {
+      year + precision > MAX_YEAR
+        ? nextDate.copy(maxDate)
+        : nextDate.set(year + precision);
+
       const nextYearX =
-        cursor +
-        this.translation +
-        currentDate.dayCountToNextYears(precision) * this.dayWidth;
+        cursor + this.translation + currentDate.diff(nextDate) * this.dayWidth;
 
-      const text = numberToLabel(precisionRound(currentDate.year));
-
+      const text = numberToLabel(precisionRounded(currentDate.year));
       const widthText = context.measureText(text).width;
 
       context.fillText(
         text,
-        widthText > nextYearX
+        cursor + this.translation + widthText > nextYearX
           ? nextYearX - widthText
           : Math.max(0, cursor + this.translation),
         yMax
       );
 
       cursor = nextYearX - this.translation;
-      currentDate.toNextYears(precision);
+      context.lineTo(cursor + this.translation, yMax);
+      context.lineTo(cursor + this.translation, yMin);
+      context.lineTo(cursor + this.translation, yMax);
+      currentDate.copy(nextDate);
+
+      if (year + precision == TimelineDate.MAX_TIMELINE_DATE.year) break;
     }
+
+    context.closePath();
+    context.stroke();
   }
 
   update() {
@@ -788,7 +776,7 @@ window.customElements.define('timeline-div', Timeline, { extends: 'div' });
 
 // DEBUG unit test done here for now
 console.time('unit test');
-const someDate = new TimelineDate(BIG_BANG_YEAR, 5, 23);
+const someDate = new TimelineDate(-13.8 * 1000000000, 5, 23);
 
 const days = [
   1, 15, 30, 31, 32, 5, 10, 56, 12515, 11151818, 18181812, 365, 366, 364, 367,

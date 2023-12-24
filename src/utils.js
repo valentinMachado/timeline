@@ -47,15 +47,26 @@ export const reverseString = (str) => {
 };
 
 export const numberToLabel = (number) => {
+  let isNegative = false;
+  if (number < 0) {
+    number *= -1;
+    isNegative = true;
+  }
+
   const numberString = reverseString(number + '');
 
   const parts = numberString.match(/.{1,3}/g);
 
   let result = '';
   for (let index = parts.length - 1; index >= 0; index--) {
+    if (index == parts.length - 1 && isNegative) result += '-';
     result += reverseString(parts[index]);
-    if (index) result += ',';
+    if (index > 0) result += ',';
   }
 
   return result;
+};
+
+export const numberEquals = (a, b) => {
+  return Math.abs(a - b) < Number.EPSILON;
 };
