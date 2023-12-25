@@ -427,8 +427,8 @@ export class Timeline extends HTMLDivElement {
       }) || 0;
 
     //DEBUG
-    this.scale = 1;
-    this.translation = 0;
+    // this.scale = 1;
+    // this.translation = 0;
 
     this.canvas.addEventListener('wheel', (event) => {
       const worldX = (event.clientX - this.translation) / this.scale;
@@ -628,7 +628,7 @@ export class Timeline extends HTMLDivElement {
     context.beginPath();
     context.moveTo(cursor + this.translation, yMax);
 
-    const nextDate = minDate.clone();
+    const nextDate = currentDate.clone();
 
     while (nextDate.isBefore(maxDate) || nextDate.equals(maxDate)) {
       nextDate.copy(currentDate).toNextMonth();
@@ -639,11 +639,11 @@ export class Timeline extends HTMLDivElement {
       const text = TimelineDate.monthToString(currentDate.month);
       const widthText = context.measureText(text).width;
 
+      let xText = Math.max(0, cursor + this.translation);
+
       context.fillText(
         text,
-        cursor + this.translation + widthText > nextMonthX
-          ? nextMonthX - widthText
-          : Math.max(0, cursor + this.translation),
+        xText + widthText > nextMonthX ? nextMonthX - widthText : xText,
         yMax
       );
 
@@ -711,12 +711,11 @@ export class Timeline extends HTMLDivElement {
 
       const text = numberToLabel(precisionRounded(currentDate.year));
       const widthText = context.measureText(text).width;
+      let xText = Math.max(0, cursor + this.translation);
 
       context.fillText(
         text,
-        cursor + this.translation + widthText > nextYearX
-          ? nextYearX - widthText
-          : Math.max(0, cursor + this.translation),
+        xText + widthText > nextYearX ? nextYearX - widthText : xText,
         yMax
       );
 
