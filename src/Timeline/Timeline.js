@@ -1,11 +1,18 @@
-import { localStorageFloat, numberEquals, numberToLabel } from '../utils';
+import {
+  isNumeric,
+  localStorageFloat,
+  localStorageInt,
+  numberEquals,
+  numberToLabel,
+} from '../utils';
+import { v4 as uuidv4 } from 'uuid';
 import './timeline.css';
 
 const MIN_CHUNK_YEARS = 1000000000; // min chunk years is the minimum precision the timeline can be display min and max year should multiple
 const MIN_YEAR = -14 * MIN_CHUNK_YEARS; // approximatly bing bang
 const MAX_YEAR = MIN_CHUNK_YEARS; // minimum chunk to wrap today
 
-export class TimelineDate {
+class TimelineDate {
   constructor(year, month = 0, day = 1) {
     this.year = parseInt(year);
     this.month = parseInt(month);
@@ -383,6 +390,86 @@ export class TimelineDate {
 TimelineDate.MAX_TIMELINE_DATE = new TimelineDate(MAX_YEAR);
 TimelineDate.MIN_TIMELINE_DATE = new TimelineDate(MIN_YEAR);
 
+class LocalStorageInput extends HTMLDivElement {
+  constructor(id, labelText, type, valueType, defaultValue) {
+    super();
+
+    const label = document.createElement('label');
+    label.innerText = labelText;
+    this.appendChild(label);
+
+    const uuid = uuidv4();
+    label.htmlFor = uuid;
+
+    /** @type {HTMLInputElement} */
+    this.input = document.createElement('input');
+    this.input.setAttribute('id', uuid);
+    this.input.setAttribute('type', type);
+    this.appendChild(this.input);
+
+    if (valueType == LocalStorageInput.VALUE_TYPE.INTEGER) {
+      const localStorageInteger = localStorageInt(id, () =>
+        parseInt(this.input.value)
+      );
+      this.input.value = isNumeric(localStorageInteger)
+        ? localStorageInteger
+        : defaultValue;
+    }
+  }
+}
+
+// enum of value type for local storage input
+LocalStorageInput.VALUE_TYPE = {
+  INTEGER: 0,
+};
+
+window.customElements.define('local-storage-input', LocalStorageInput, {
+  extends: 'div',
+});
+
+class TimelineDateSelector extends HTMLDivElement {
+  constructor(id, labelText, defaultValues) {
+    super();
+
+    const label = document.createElement('label');
+    label.innerText = labelText;
+    this.appendChild(label);
+
+    const year = new LocalStorageInput(
+      id + '_year',
+      'Année: ',
+      'number',
+      LocalStorageInput.VALUE_TYPE.INTEGER,
+      defaultValues.year
+    );
+    this.appendChild(year);
+  }
+}
+
+window.customElements.define('timeline-date-selector', TimelineDateSelector, {
+  extends: 'div',
+});
+
+class TimelineUI extends HTMLDivElement {
+  constructor() {
+    super();
+
+    // css
+    this.classList.add('timeline-ui');
+
+    this.minClampDateSelector = new TimelineDateSelector(
+      'minClampDateSelector',
+      'Minimum date',
+      {
+        year: MIN_YEAR,
+      }
+    );
+    this.appendChild(this.minClampDateSelector);
+  }
+}
+
+window.customElements.define('timeline-ui', TimelineUI, { extends: 'div' });
+
 export class Timeline extends HTMLDivElement {
   constructor() {
     super();
@@ -390,40 +477,55 @@ export class Timeline extends HTMLDivElement {
     // css
     this.classList.add('timeline');
 
+    /** @type {TimelineUI} */
+    this.ui = new TimelineUI();
+    this.appendChild(this.ui);
+
     /** @type {HTMLCanvasElement} */
     this.canvas = document.createElement('canvas');
     this.appendChild(this.canvas);
-    // full screen TODO : should be configurable
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight * 0.3;
 
-    // TODO : do not record in window
-    window.addEventListener('resize', () => {
-      this.canvas.width = window.innerWidth;
+    /** @type {Function} */
+    this._resizeListener = () => {
+      this.canvas.width = window.innerWidth * 0.8;
       this.canvas.height = window.innerHeight * 0.3;
       this.computeWidthAttributes();
       this.update();
-    });
+    };
 
-    /** @type {number} */
-    this._scale = localStorageFloat('timeline_scale', () => {
+    this.canvas.width = window.innerWidth * 0.8;
+    this.canvas.height = window.innerHeight * 0.3;
+    this.computeWidthAttributes();
+
+    const localStorageScale = localStorageFloat('timeline_scale', () => {
       return this.scale;
     });
-    if (this.scale == null) this.scale = 1;
-    /** @type {number} */
-    this._translation =
-      localStorageFloat('timeline_translation', () => {
+
+    const localStorageTranslation = localStorageFloat(
+      'timeline_translation',
+      () => {
         return this.translation;
-      }) || 0;
+      }
+    );
+
+    isNumeric(localStorageScale)
+      ? (this.scale = localStorageScale)
+      : (this.scale = 1);
+
+    isNumeric(localStorageTranslation)
+      ? (this.translation = localStorageTranslation)
+      : (this.translation = 0);
+
+    this.update();
 
     //DEBUG
     // this.scale = 1;
     // this.translation = 0;
 
     this.canvas.addEventListener('wheel', (event) => {
-      const worldX = (event.clientX - this.translation) / this.scale;
+      const worldX = (event.offsetX - this.translation) / this.scale;
       this.scale *= -Math.abs(event.deltaY) / event.deltaY > 0 ? 2 : 0.5;
-      this.translation = -(worldX * this.scale - event.clientX);
+      this.translation = -(worldX * this.scale - event.offsetX);
       this.update();
     });
 
@@ -446,8 +548,7 @@ export class Timeline extends HTMLDivElement {
       isDragging = false;
     });
 
-    this.computeWidthAttributes();
-    this.update();
+    window.addEventListener('resize', this._resizeListener);
   }
 
   computeWidthAttributes() {
@@ -745,7 +846,7 @@ export class Timeline extends HTMLDivElement {
   update() {
     this.drawCanvas();
   }
-  // scale property
+
   get scale() {
     return this._scale;
   }
@@ -754,7 +855,6 @@ export class Timeline extends HTMLDivElement {
     this._scale = Math.max(Math.min(value, this.maxScale), 1);
   }
 
-  // translation property
   get translation() {
     return this._translation;
   }

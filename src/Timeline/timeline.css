@@ -1,3 +1,7 @@
+:root {
+  --timeline-ui-width-percent: 20%;
+}
+
 .timeline {
   background-color: yellow;
   width: 100%;
@@ -6,4 +10,13 @@
 
 .timeline canvas {
   background-color: brown;
+  width: calc(100% - var(--timeline-ui-width-percent));
+  margin-left: var(--timeline-ui-width-percent);
+}
+
+.timeline-ui {
+  background-color: blue;
+  height: 100%;
+  width: var(--timeline-ui-width-percent);
+  position: absolute;
 }
