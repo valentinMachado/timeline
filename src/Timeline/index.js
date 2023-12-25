@@ -1,5 +1,6 @@
 import {
   isNumeric,
+  lerp,
   localStorageFloat,
   numberEquals,
   numberToLabel,
@@ -9,6 +10,7 @@ import { TimelineUI } from './UI';
 import { TimelineDate, MIN_CHUNK_YEARS, MAX_YEAR } from './Date';
 
 import './style.css';
+import { TimelineControls } from './Controls';
 
 export class Timeline extends HTMLElement {
   constructor() {
@@ -60,49 +62,79 @@ export class Timeline extends HTMLElement {
 
     this._addEventListeners();
 
+    this.controls = new TimelineControls(this);
+
+    /** @type {boolean} - flag */
+    this._isMoving = false;
+
     //DEBUG
     // this.scale = 1;
     // this.translation = 0;
   }
 
-  _addEventListeners() {
-    this.canvas.addEventListener('wheel', (event) => {
-      const worldX = (event.offsetX - this.translation) / this.scale;
-      this.scale *= -Math.abs(event.deltaY) / event.deltaY > 0 ? 2 : 0.5;
-      this.translation = -(worldX * this.scale - event.offsetX);
-      this.update();
-    });
-
-    let isDragging = false;
-    let startTranslation = 0;
-
-    this.canvas.addEventListener('mousedown', (event) => {
-      isDragging = true;
-      startTranslation = event.clientX - this.translation;
-    });
-
-    this.canvas.addEventListener('mousemove', (event) => {
-      if (isDragging) {
-        this.translation = event.clientX - startTranslation;
-        this.update();
+  move(
+    destScale = this.scale,
+    destTranslation = this.translation,
+    duration = 1000
+  ) {
+    return new Promise((resolve) => {
+      if (this._isMoving) {
+        resolve();
+        return;
       }
-    });
 
-    window.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
+      this._isMoving = true;
+      this.controls.enable = false;
 
+      let timeLastCall = Date.now();
+      const startScale = this.scale;
+      const startTranslation = this.translation;
+      let ratio = 0;
+
+      const interval = setInterval(() => {
+        const now = Date.now();
+        let dt = now - timeLastCall;
+        timeLastCall = now;
+
+        ratio += dt / duration;
+        ratio = Math.min(Math.max(0, ratio), 1);
+
+        this.scale = lerp(startScale, destScale, ratio);
+        this.translation = lerp(startTranslation, destTranslation, ratio);
+
+        this._drawCanvas();
+
+        if (ratio >= 1) {
+          clearInterval(interval);
+          this._isMoving = false;
+          this.controls.enable = true;
+          resolve();
+        }
+      }, 30);
+    });
+  }
+
+  _addEventListeners() {
     window.addEventListener('resize', this._resizeListener);
 
     // ui
-    this.ui.minClampDateSelector.addEventListener('change', () => {
-      this._computeWidthAttributes();
-      this.update();
-    });
-    this.ui.maxClampDateSelector.addEventListener('change', () => {
-      this._computeWidthAttributes();
-      this.update();
-    });
+    const onClampDateChange = () => {
+      // compute dest scale and dest translation
+      const diff = this.ui.minClampDateSelector.value.diff(
+        this.ui.maxClampDateSelector.value
+      );
+      // TODO cannot unzoom and its buggy
+      const destScale = this.totalDayCount / diff;
+      const destTranslation = this.minDayWidth * destScale * diff * 0.5;
+
+      this.move(destScale, destTranslation).then(() => {
+        this._computeWidthAttributes();
+        this.update();
+      });
+    };
+
+    this.ui.minClampDateSelector.addEventListener('change', onClampDateChange);
+    this.ui.maxClampDateSelector.addEventListener('change', onClampDateChange);
   }
 
   _computeWidthAttributes() {

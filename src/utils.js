@@ -38,6 +38,10 @@ export const localStorageString = (key, getter) => {
   return localStorage.getItem(key) ? localStorage.getItem(key) : null;
 };
 
+export const lerp = (a, b, ratio) => {
+  return a * (1 - ratio) + b * ratio;
+};
+
 /**
  * Check if a string is a valid number
  * inspired of https://stackoverflow.com/questions/175739/built-in-way-in-javascript-to-check-if-a-string-is-a-valid-number

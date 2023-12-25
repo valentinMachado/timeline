@@ -244,6 +244,43 @@ export class TimelineDate {
     return endDate.diff(this);
   }
 
+  /** TODO make this generic */
+  subDay() {
+    this.day--;
+    if (this.day < 1) {
+      this.month--;
+      if (this.month < 0) {
+        this.year--;
+        this.month = 11;
+      }
+      this.day = TimelineDate.monthDayCount(this.year, this.month);
+    }
+
+    return TimelineDate.assert(this);
+  }
+
+  clamp(min, max) {
+    if (this.isBefore(min)) {
+      this.copy(min);
+    } else if (this.isAfter(max)) {
+      this.copy(max);
+    }
+
+    return TimelineDate.assert(this);
+  }
+
+  static magnetizeDay(day, month, year) {
+    return Math.max(Math.min(day, TimelineDate.monthDayCount(year, month)), 1);
+  }
+
+  static magnetizeMonth(month) {
+    return Math.max(Math.min(11, month), 0);
+  }
+
+  static magnetizeYear(year) {
+    return Math.max(Math.min(year, MAX_YEAR), MIN_YEAR);
+  }
+
   toString() {
     return (
       this.day +

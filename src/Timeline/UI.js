@@ -137,6 +137,20 @@ class TimelineDateSelector extends LocalStorageDetails {
     this.details.appendChild(this.day);
   }
 
+  magnetize() {
+    this.year.input.value = TimelineDate.magnetizeYear(this.year.input.value);
+    this.month.select.value = TimelineDate.monthToString(
+      TimelineDate.magnetizeMonth(
+        TimelineDate.stringToMonth(this.month.select.value)
+      )
+    );
+    this.day.input.value = TimelineDate.magnetizeDay(
+      this.day.input.value,
+      TimelineDate.stringToMonth(this.month.select.value),
+      this.year.input.value
+    );
+  }
+
   get value() {
     this._value.set(
       this.year.input.valueAsNumber,
@@ -144,6 +158,13 @@ class TimelineDateSelector extends LocalStorageDetails {
       this.day.input.valueAsNumber
     );
     return this._value;
+  }
+
+  set value(content) {
+    this._value.copy(content);
+    this.day.input.value = this._value.day;
+    this.month.select.value = TimelineDate.monthToString(this._value.month);
+    this.year.input.value = this._value.year;
   }
 }
 
@@ -171,6 +192,27 @@ export class TimelineUI extends HTMLDivElement {
       TimelineDate.MAX_TIMELINE_DATE
     );
     this.appendChild(this.maxClampDateSelector);
+
+    // listeners
+    this.minClampDateSelector.addEventListener('change', () => {
+      this.minClampDateSelector.magnetize();
+
+      // clamp
+      this.minClampDateSelector.value = this.minClampDateSelector.value.clamp(
+        TimelineDate.MIN_TIMELINE_DATE,
+        this.maxClampDateSelector.value.subDay()
+      );
+    });
+
+    this.maxClampDateSelector.addEventListener('change', () => {
+      this.maxClampDateSelector.magnetize();
+
+      // clamp
+      this.maxClampDateSelector.value = this.maxClampDateSelector.value.clamp(
+        this.minClampDateSelector.value.add(1),
+        TimelineDate.MAX_TIMELINE_DATE
+      );
+    });
   }
 }
 
