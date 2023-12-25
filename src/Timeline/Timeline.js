@@ -401,27 +401,17 @@ export class Timeline extends HTMLDivElement {
     window.addEventListener('resize', () => {
       this.canvas.width = window.innerWidth;
       this.canvas.height = window.innerHeight * 0.3;
+      this.computeWidthAttributes();
       this.update();
     });
 
-    this.totalDayCount = TimelineDate.MAX_TIMELINE_DATE.diff(
-      TimelineDate.MIN_TIMELINE_DATE
-    ); // number of day between min and max
-    console.info('total days = ' + this.totalDayCount);
-    if (this.totalDayCount > Number.MAX_SAFE_INTEGER)
-      console.warn('total day count overflow');
-
-    this.minDayWidth = window.innerWidth / this.totalDayCount; // minScale=1 shows between minDate and maxDate
-    if (this.minDayWidth < Number.EPSILON)
-      console.warn('min day width overflow');
-
-    this.maxScale = window.innerWidth / this.minDayWidth; // day width cant be superior window.innerWidth
-
+    /** @type {number} */
     this._scale = localStorageFloat('timeline_scale', () => {
       return this.scale;
     });
     if (this.scale == null) this.scale = 1;
-    this.translation =
+    /** @type {number} */
+    this._translation =
       localStorageFloat('timeline_translation', () => {
         return this.translation;
       }) || 0;
@@ -456,7 +446,27 @@ export class Timeline extends HTMLDivElement {
       isDragging = false;
     });
 
+    this.computeWidthAttributes();
     this.update();
+  }
+
+  computeWidthAttributes() {
+    this.totalDayCount = TimelineDate.MAX_TIMELINE_DATE.diff(
+      TimelineDate.MIN_TIMELINE_DATE
+    ); // number of day between min and max
+    console.info('total days = ' + this.totalDayCount);
+    if (this.totalDayCount > Number.MAX_SAFE_INTEGER)
+      console.warn('total day count overflow');
+
+    this.minDayWidth = this.canvas.width / this.totalDayCount; // minScale=1 shows between minDate and maxDate
+    if (this.minDayWidth < Number.EPSILON)
+      console.warn('min day width overflow');
+
+    this.maxScale = this.canvas.width / this.minDayWidth; // day width cant be superior this.canvas.width
+
+    // force a set with setter because its depends of this.canvas.width and this.maxScale
+    this.scale = this.scale; // scale first because scale does not depends of translation whereas translation does
+    this.translation = this.translation;
   }
 
   drawCanvas() {
@@ -471,7 +481,7 @@ export class Timeline extends HTMLDivElement {
     );
     const maxDateOnScreen = minDateOnScreen
       .clone()
-      .add(Math.ceil(window.innerWidth / this.dayWidth));
+      .add(Math.ceil(this.canvas.width / this.dayWidth));
 
     console.log(
       'draw between',
@@ -752,7 +762,7 @@ export class Timeline extends HTMLDivElement {
   set translation(value) {
     this._translation = Math.round(
       Math.max(
-        -(this.totalDayCount * this.dayWidth - window.innerWidth), // TODO remove window.innerWidth
+        -(this.totalDayCount * this.dayWidth - this.canvas.width),
         Math.min(value, 0)
       )
     );
