@@ -22,6 +22,22 @@ export const localStorageInt = (key, getter) => {
     : null;
 };
 
+export const localStorageBoolean = (key, getter) => {
+  window.addEventListener('beforeunload', () => {
+    localStorage.setItem(key, JSON.stringify(getter()));
+  });
+
+  return localStorage.getItem(key) == 'true' ? true : false;
+};
+
+export const localStorageString = (key, getter) => {
+  window.addEventListener('beforeunload', () => {
+    localStorage.setItem(key, getter());
+  });
+
+  return localStorage.getItem(key) ? localStorage.getItem(key) : null;
+};
+
 /**
  * Check if a string is a valid number
  * inspired of https://stackoverflow.com/questions/175739/built-in-way-in-javascript-to-check-if-a-string-is-a-valid-number

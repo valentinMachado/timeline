@@ -20,3 +20,8 @@
   width: var(--timeline-ui-width-percent);
   position: absolute;
 }
+
+.display_column {
+  display: flex;
+  flex-direction: column;
+}

@@ -1,4 +1,4 @@
-import { Timeline } from './Timeline/Timeline';
+import { Timeline } from './Timeline/index';
 import './style.css';
 
 console.time('timeline created');
