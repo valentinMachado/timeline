@@ -1,27 +1,35 @@
 :root {
+  --timeline-color-1: #1f1f14;
+  --timeline-color-2: #e1e1d0;
+  --timeline-color-3: #8c8c5a;
+
   --timeline-ui-width-percent: 20%;
 }
 
 .timeline {
-  background-color: yellow;
   width: 100%;
   height: 100%;
 }
 
 .timeline canvas {
-  background-color: brown;
+  background-color: var(--timeline-color-3);
   width: calc(100% - var(--timeline-ui-width-percent));
   margin-left: var(--timeline-ui-width-percent);
 }
 
 .timeline-ui {
-  background-color: blue;
+  background-color: var(--timeline-color-1);
   height: 100%;
   width: var(--timeline-ui-width-percent);
   position: absolute;
+  color: var(--timeline-color-2);
 }
 
 .display_column {
   display: flex;
   flex-direction: column;
+}
+
+.padded {
+  padding: 5px;
 }

@@ -31,13 +31,13 @@ export class Timeline extends HTMLElement {
     this._resizeListener = () => {
       this.canvas.width = window.innerWidth * 0.8;
       this.canvas.height = window.innerHeight * 0.3;
-      this._computeWidthAttributes();
+      this._updateCanvasReferential();
       this.update();
     };
 
     this.canvas.width = window.innerWidth * 0.8;
     this.canvas.height = window.innerHeight * 0.3;
-    this._computeWidthAttributes();
+    this._updateCanvasReferential();
 
     const localStorageScale = localStorageFloat('timeline_scale', () => {
       return this.scale;
@@ -58,37 +58,81 @@ export class Timeline extends HTMLElement {
       ? (this.translation = localStorageTranslation)
       : (this.translation = 0);
 
+    /** @type {TimelineDate} */
+    this._lastMinOnScreen = new TimelineDate();
+
+    /** @type {TimelineDate} */
+    this._lastMaxOnScreen = new TimelineDate();
+
     this.update();
 
     this._addEventListeners();
 
     this.controls = new TimelineControls(this);
 
-    /** @type {boolean} - flag */
-    this._isMoving = false;
-
     //DEBUG
     // this.scale = 1;
     // this.translation = 0;
   }
 
-  move(
-    destScale = this.scale,
-    destTranslation = this.translation,
-    duration = 1000
-  ) {
+  move(destScaleArrivalRef, destTranslationArrivalRef, duration = 2000) {
     return new Promise((resolve) => {
-      if (this._isMoving) {
-        resolve();
-        return;
-      }
-
-      this._isMoving = true;
       this.controls.enable = false;
 
       let timeLastCall = Date.now();
-      const startScale = this.scale;
-      const startTranslation = this.translation;
+
+      const totalDayCountInitialRef = this.totalDayCount;
+      const startScaleInitialRef = this.scale;
+      const dayRatioStartTranslationInitialRef =
+        this.translation / this.dayWidth;
+
+      // draw in the max interval referential called move refrential here
+      const minMoveRef = TimelineDate.min(
+        this._lastMinOnScreen,
+        this.ui.minClampDateSelector.value
+      );
+      const maxMoveRef = TimelineDate.max(
+        this._lastMaxOnScreen,
+        this.ui.maxClampDateSelector.value
+      );
+      this._updateCanvasReferential(minMoveRef, maxMoveRef);
+
+      const totalDayCountMoveRef = this.totalDayCount;
+
+      // compute scale
+      const startScaleMoveRef =
+        (totalDayCountMoveRef * startScaleInitialRef) / totalDayCountInitialRef;
+      const totalDayCountArrivalRef = this.ui.minClampDateSelector.value.diff(
+        this.ui.maxClampDateSelector.value
+      );
+      const destScaleMoveRef =
+        (totalDayCountMoveRef * destScaleArrivalRef) / totalDayCountArrivalRef;
+
+      // compute translation
+      let startTranslationMoveRef =
+        this.dayWidth * dayRatioStartTranslationInitialRef;
+
+      const dayWidthArrivalRef =
+        (destScaleArrivalRef * this.canvas.width) / totalDayCountArrivalRef;
+      const dayRatioDestTranslationArrivalRef =
+        destTranslationArrivalRef / dayWidthArrivalRef;
+
+      let destTranslationMoveRef =
+        this.dayWidth * dayRatioDestTranslationArrivalRef;
+
+      if (this._lastMinOnScreen.isAfter(this.ui.minClampDateSelector.value)) {
+        /**
+         *   |--------------------|
+         *   ui.min               lastMin
+         */
+        const offset =
+          this._lastMinOnScreen.diff(this.ui.minClampDateSelector.value) *
+          this.dayWidth;
+
+        startTranslationMoveRef += offset;
+        destTranslationMoveRef += offset;
+      }
+
       let ratio = 0;
 
       const interval = setInterval(() => {
@@ -99,15 +143,33 @@ export class Timeline extends HTMLElement {
         ratio += dt / duration;
         ratio = Math.min(Math.max(0, ratio), 1);
 
-        this.scale = lerp(startScale, destScale, ratio);
-        this.translation = lerp(startTranslation, destTranslation, ratio);
+        this.scale = lerp(startScaleMoveRef, destScaleMoveRef, ratio);
+        this.translation = lerp(
+          startTranslationMoveRef,
+          destTranslationMoveRef,
+          ratio
+        );
 
-        this._drawCanvas();
+        this._drawCanvas(minMoveRef, maxMoveRef);
 
         if (ratio >= 1) {
           clearInterval(interval);
-          this._isMoving = false;
+
           this.controls.enable = true;
+
+          // update move referential => arrival ref
+          this._updateCanvasReferential();
+          // apply scale and translation value in this referential
+          this.scale = destScaleArrivalRef;
+          this.translation = destTranslationArrivalRef;
+          // there should be no need to re draw
+
+          // DEBUG
+          this._drawCanvas();
+          console.warn(
+            'move function is not working but its resolving in right state'
+          );
+
           resolve();
         }
       }, 30);
@@ -119,28 +181,20 @@ export class Timeline extends HTMLElement {
 
     // ui
     const onClampDateChange = () => {
-      // compute dest scale and dest translation
-      const diff = this.ui.minClampDateSelector.value.diff(
-        this.ui.maxClampDateSelector.value
-      );
-      // TODO cannot unzoom and its buggy
-      const destScale = this.totalDayCount / diff;
-      const destTranslation = this.minDayWidth * destScale * diff * 0.5;
-
-      this.move(destScale, destTranslation).then(() => {
-        this._computeWidthAttributes();
-        this.update();
-      });
+      const destScale = 1; // focus all the dest interval
+      const destTranslation = 0; // since destScale = 1 => destTranslation = 0
+      this.move(destScale, destTranslation);
     };
 
     this.ui.minClampDateSelector.addEventListener('change', onClampDateChange);
     this.ui.maxClampDateSelector.addEventListener('change', onClampDateChange);
   }
 
-  _computeWidthAttributes() {
-    this.totalDayCount = this.ui.maxClampDateSelector.value.diff(
-      this.ui.minClampDateSelector.value
-    ); // number of day between min and max
+  _updateCanvasReferential(
+    min = this.ui.minClampDateSelector.value,
+    max = this.ui.maxClampDateSelector.value
+  ) {
+    this.totalDayCount = max.diff(min); // number of day between min and max
     console.info('total days = ' + this.totalDayCount);
     if (this.totalDayCount > Number.MAX_SAFE_INTEGER)
       console.warn('total day count overflow');
@@ -156,25 +210,25 @@ export class Timeline extends HTMLElement {
     this.translation = this.translation;
   }
 
-  _drawCanvas() {
-    console.time('draw canvas');
+  _drawCanvas(min = this.ui.minClampDateSelector.value) {
+    // console.time('draw canvas');
 
     const context = this.canvas.getContext('2d');
     context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     // compute min and max date on screen
-    const minDateOnScreen = this.ui.minClampDateSelector.value
+    this._lastMinOnScreen = min
       .clone()
       .add(Math.floor(-this.translation / this.dayWidth));
-    const maxDateOnScreen = minDateOnScreen
+    this._lastMaxOnScreen = this._lastMinOnScreen
       .clone()
       .add(Math.ceil(this.canvas.width / this.dayWidth));
 
-    console.log(
-      'draw between',
-      minDateOnScreen.toString(),
-      maxDateOnScreen.toString()
-    );
+    // console.log(
+    //   'draw between',
+    //   this._lastMinOnScreen.toString(),
+    //   this._lastMaxOnScreen.toString()
+    // );
 
     const xMinDate =
       Math.floor(-this.translation / this.dayWidth) * this.dayWidth;
@@ -197,16 +251,16 @@ export class Timeline extends HTMLElement {
       ) {
         // a year is inferior to canvas width => draw year and month
         this._drawCanvasYears(
-          minDateOnScreen,
-          maxDateOnScreen,
+          this._lastMinOnScreen,
+          this._lastMaxOnScreen,
           xMinDate,
           0,
           this.canvas.height * 0.5,
           1
         );
         this._drawCanvasMonths(
-          minDateOnScreen,
-          maxDateOnScreen,
+          this._lastMinOnScreen,
+          this._lastMaxOnScreen,
           xMinDate,
           this.canvas.height * 0.5,
           this.canvas.height
@@ -214,23 +268,23 @@ export class Timeline extends HTMLElement {
       } else {
         // a year is superior to canvas width => draw year, month and days
         this._drawCanvasYears(
-          minDateOnScreen,
-          maxDateOnScreen,
+          this._lastMinOnScreen,
+          this._lastMaxOnScreen,
           xMinDate,
           0,
           this.canvas.height * 0.3,
           1
         );
         this._drawCanvasMonths(
-          minDateOnScreen,
-          maxDateOnScreen,
+          this._lastMinOnScreen,
+          this._lastMaxOnScreen,
           xMinDate,
           this.canvas.height * 0.3,
           this.canvas.height * 0.6
         );
         this._drawCanvasDays(
-          minDateOnScreen,
-          maxDateOnScreen,
+          this._lastMinOnScreen,
+          this._lastMaxOnScreen,
           xMinDate,
           this.canvas.height * 0.6,
           this.canvas.height
@@ -238,8 +292,8 @@ export class Timeline extends HTMLElement {
       }
     } else {
       this._drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
+        this._lastMinOnScreen,
+        this._lastMaxOnScreen,
         xMinDate,
         0,
         this.canvas.height * 0.5,
@@ -247,8 +301,8 @@ export class Timeline extends HTMLElement {
       );
 
       this._drawCanvasYears(
-        minDateOnScreen,
-        maxDateOnScreen,
+        this._lastMinOnScreen,
+        this._lastMaxOnScreen,
         xMinDate,
         this.canvas.height * 0.5,
         this.canvas.height,
@@ -256,7 +310,7 @@ export class Timeline extends HTMLElement {
       );
     }
 
-    console.timeEnd('draw canvas');
+    // console.timeEnd('draw canvas');
   }
 
   _drawCanvasDays(minDate, maxDate, xMinDate, yMin, yMax) {

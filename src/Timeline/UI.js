@@ -12,6 +12,7 @@ class LocalStorageDetails extends HTMLElement {
     super();
 
     this.details = document.createElement('details');
+    this.details.classList.add('padded');
     this.appendChild(this.details);
 
     const summary = document.createElement('summary');
@@ -32,6 +33,7 @@ class LocalStorageInput extends HTMLElement {
     super();
 
     this.classList.add('display_column');
+    this.classList.add('padded');
 
     const label = document.createElement('label');
     label.innerText = labelText;
@@ -69,6 +71,7 @@ class LocalStorageSelect extends HTMLElement {
     super();
 
     this.classList.add('display_column');
+    this.classList.add('padded');
 
     const label = document.createElement('label');
     label.innerText = labelText;
@@ -170,7 +173,7 @@ class TimelineDateSelector extends LocalStorageDetails {
 
 window.customElements.define('timeline-date-selector', TimelineDateSelector);
 
-export class TimelineUI extends HTMLDivElement {
+export class TimelineUI extends HTMLElement {
   constructor() {
     super();
 
@@ -216,4 +219,4 @@ export class TimelineUI extends HTMLDivElement {
   }
 }
 
-window.customElements.define('timeline-ui', TimelineUI, { extends: 'div' });
+window.customElements.define('timeline-ui', TimelineUI);
