@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>sign in</title>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+  <script src="./dist/RUN_MODE/bundle.js"></script>
+  
+  <label>Pseudo</label>
+  <input id="input_nickname" type="text"></input>
+  <label>Mot de passe</label>
+  <input id="input_password" type="password"></input>
+  <button onclick="signIn()">Connexion</button>
+
+  <script>
+    function signIn() {
+      lib_name.request(window.origin + "/sign_in", {
+        data:{
+          nickname: document.getElementById("input_nickname").value,
+          password: document.getElementById("input_password").value
+        },
+        responseType: "text"
+      }).then((token) => {
+        lib_name.writeTokenInCookie(token)
+        window.location.href = "./index.html"
+      }).catch((response) => {
+        console.log(response)
+        alert(response.error);
+      })
+    }
+  </script>
+</body>
+
+</html>

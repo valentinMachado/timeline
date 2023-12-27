@@ -4,7 +4,7 @@ const result = {
   entry: './src/index.js',
   output: {
     filename: 'bundle.js',
-    library: 'timeline',
+    library: 'lib_name',
     libraryTarget: 'umd',
     umdNamedDefine: true,
   },

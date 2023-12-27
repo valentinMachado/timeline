@@ -3,7 +3,8 @@ import {
   localStorageInt,
   isNumeric,
   localStorageString,
-} from '../utils';
+  writeTokenInCookie,
+} from './utils';
 import { v4 as uuidv4 } from 'uuid';
 import { TimelineDate } from './Date';
 
@@ -179,6 +180,15 @@ export class TimelineUI extends HTMLElement {
 
     // css
     this.classList.add('timeline-ui');
+
+    const disconnectButton = document.createElement('button');
+    disconnectButton.innerText = 'Deconnexion';
+    disconnectButton.classList.add('marged');
+    disconnectButton.onclick = () => {
+      writeTokenInCookie(null);
+      window.location.href = './';
+    };
+    this.appendChild(disconnectButton);
 
     /** @type {TimelineDateSelector} */
     this.minClampDateSelector = new TimelineDateSelector(

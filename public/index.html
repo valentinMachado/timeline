@@ -4,8 +4,49 @@
     <title>timeline</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <script src="./dist/RUN_MODE/bundle.js"></script>
+    <script>
+      const main = async () => {
+        const user = await lib_name.request('/validate_token', {
+          responseType: 'json',
+        });
+
+        if (!user) {
+          // go to sign in page
+          window.location.href = './sign_in.html';
+          return;
+        }
+
+        console.time('timeline created');
+        const timeline = new lib_name.Timeline();
+        console.timeEnd('timeline created');
+        document.body.appendChild(timeline);
+
+        // DEBUG
+        window.addEventListener('keydown', (event) => {
+          const speedTranslation = 200;
+          if (event.key == 'p') {
+            console.log(timeline);
+          } else if (event.key == 'ArrowRight') {
+            timeline.translation -= speedTranslation;
+            timeline.update();
+          } else if (event.key == 'ArrowLeft') {
+            timeline.translation += speedTranslation;
+            timeline.update();
+          } else if (event.key == 'ArrowUp') {
+            timeline.scale -= speedTranslation;
+            timeline.update();
+          } else if (event.key == 'ArrowDown') {
+            timeline.scale += speedTranslation;
+            timeline.update();
+          }
+        });
+      };
+
+      main();
+    </script>
   </body>
 </html>

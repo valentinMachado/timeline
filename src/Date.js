@@ -1,4 +1,4 @@
-import { numberToLabel } from '../utils';
+import { numberToLabel } from './utils';
 
 export const MIN_CHUNK_YEARS = 1000000000; // min chunk years is the minimum precision the timeline can be display min and max year should multiple
 export const MIN_YEAR = -14 * MIN_CHUNK_YEARS; // approximatly bing bang

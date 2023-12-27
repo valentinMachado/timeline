@@ -102,3 +102,47 @@ export const numberToLabel = (number) => {
 export const numberEquals = (a, b) => {
   return Math.abs(a - b) < Number.EPSILON;
 };
+
+export const request = (url, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(options.method || 'POST', url);
+    xhr.setRequestHeader(
+      'Content-Type',
+      options.contentType || 'application/json; charset=UTF-8'
+    );
+    xhr.timeout = options.timeout || 5000;
+
+    xhr.send(JSON.stringify(options.data) || '');
+
+    xhr.onerror = reject.bind(null, {
+      status: xhr.status,
+      error: 'request timeout',
+    });
+
+    xhr.onloadend = () => {
+      if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
+        switch (options.responseType || 'json') {
+          case 'json':
+            xhr.responseText == ''
+              ? resolve(null)
+              : resolve(JSON.parse(xhr.responseText));
+            break;
+          case 'text':
+            resolve(xhr.responseText);
+            break;
+          default:
+            throw new Error('wrong responseType');
+        }
+      } else {
+        reject({ status: xhr.status, error: xhr.responseText });
+      }
+    };
+  });
+};
+
+export const writeTokenInCookie = (stringValue) => {
+  const cookie = document.cookie === '' ? {} : JSON.parse(document.cookie);
+  cookie['token'] = stringValue;
+  document.cookie = JSON.stringify(cookie);
+};

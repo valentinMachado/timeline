@@ -5,7 +5,7 @@ const dev = async () => {
   await exec('npm run build-dev');
   const child = spawn(
     'cross-env NODE_ENV=development node',
-    ['./bin/backend.js'],
+    ['./bin/backend/index.js'],
     {
       shell: true,
     }
