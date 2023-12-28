@@ -25,6 +25,11 @@
   color: var(--timeline-color-2);
 }
 
+.timeline-ui button,
+summary {
+  cursor: pointer;
+}
+
 .display_column {
   display: flex;
   flex-direction: column;
