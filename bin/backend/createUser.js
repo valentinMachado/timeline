@@ -10,7 +10,7 @@ const main = async () => {
   const user = await createUser(nickameParam, passwordParam, roleParam).catch(
     (error) => console.error(error)
   );
-  if (user) console.log(user, 'created');
+  if (user) console.log('user created');
 };
 
 main();

@@ -6,7 +6,7 @@ import {
   numberToLabel,
 } from './utils';
 
-import { TimelineUI } from './UI';
+import { TimelineEventEditor, TimelineLeftPan } from './UI';
 import { TimelineDate, MIN_CHUNK_YEARS, MAX_YEAR } from './Date';
 
 import './style.css';
@@ -22,9 +22,14 @@ export class Timeline extends HTMLElement {
     // css
     this.classList.add('timeline');
 
-    /** @type {TimelineUI} */
-    this.ui = new TimelineUI();
-    this.appendChild(this.ui);
+    /** @type {TimelineLeftPan} */
+    this.leftPan = new TimelineLeftPan();
+    this.appendChild(this.leftPan);
+
+    /** @type {HTMLDivElement} */
+    this.eventContainer = document.createElement('div');
+    this.eventContainer.classList.add('timeline-event-container');
+    this.appendChild(this.eventContainer);
 
     /** @type {HTMLCanvasElement} */
     this.canvas = document.createElement('canvas');
@@ -34,13 +39,13 @@ export class Timeline extends HTMLElement {
     this._resizeListener = () => {
       this.canvas.width = window.innerWidth * 0.8;
       this.canvas.height = window.innerHeight * 0.3;
-      this._updateCanvasReferential();
+      this._updateReferential();
       this.update();
     };
 
     this.canvas.width = window.innerWidth * 0.8;
-    this.canvas.height = window.innerHeight * 0.3;
-    this._updateCanvasReferential();
+    this.canvas.height = window.innerHeight * 0.33;
+    this._updateReferential();
 
     const localStorageScale = localStorageFloat('timeline_scale', () => {
       return this.scale;
@@ -92,22 +97,23 @@ export class Timeline extends HTMLElement {
       // draw in the max interval referential called move refrential here
       const minMoveRef = TimelineDate.min(
         this._lastMinOnScreen,
-        this.ui.minClampDateSelector.value
+        this.leftPan.timelineIntervalSelector.min.value
       );
       const maxMoveRef = TimelineDate.max(
         this._lastMaxOnScreen,
-        this.ui.maxClampDateSelector.value
+        this.leftPan.timelineIntervalSelector.max.value
       );
-      this._updateCanvasReferential(minMoveRef, maxMoveRef);
+      this._updateReferential(minMoveRef, maxMoveRef);
 
       const totalDayCountMoveRef = this.totalDayCount;
 
       // compute scale
       const startScaleMoveRef =
         (totalDayCountMoveRef * startScaleInitialRef) / totalDayCountInitialRef;
-      const totalDayCountArrivalRef = this.ui.minClampDateSelector.value.diff(
-        this.ui.maxClampDateSelector.value
-      );
+      const totalDayCountArrivalRef =
+        this.leftPan.timelineIntervalSelector.min.value.diff(
+          this.leftPan.timelineIntervalSelector.max.value
+        );
       const destScaleMoveRef =
         (totalDayCountMoveRef * destScaleArrivalRef) / totalDayCountArrivalRef;
 
@@ -123,14 +129,19 @@ export class Timeline extends HTMLElement {
       let destTranslationMoveRef =
         this.dayWidth * dayRatioDestTranslationArrivalRef;
 
-      if (this._lastMinOnScreen.isAfter(this.ui.minClampDateSelector.value)) {
+      if (
+        this._lastMinOnScreen.isAfter(
+          this.leftPan.timelineIntervalSelector.min.value
+        )
+      ) {
         /**
          *   |--------------------|
          *   ui.min               lastMin
          */
         const offset =
-          this._lastMinOnScreen.diff(this.ui.minClampDateSelector.value) *
-          this.dayWidth;
+          this._lastMinOnScreen.diff(
+            this.leftPan.timelineIntervalSelector.min.value
+          ) * this.dayWidth;
 
         startTranslationMoveRef += offset;
         destTranslationMoveRef += offset;
@@ -161,7 +172,7 @@ export class Timeline extends HTMLElement {
           this.controls.enable = true;
 
           // update move referential => arrival ref
-          this._updateCanvasReferential();
+          this._updateReferential();
           // apply scale and translation value in this referential
           this.scale = destScaleArrivalRef;
           this.translation = destTranslationArrivalRef;
@@ -189,13 +200,32 @@ export class Timeline extends HTMLElement {
       this.move(destScale, destTranslation);
     };
 
-    this.ui.minClampDateSelector.addEventListener('change', onClampDateChange);
-    this.ui.maxClampDateSelector.addEventListener('change', onClampDateChange);
+    this.leftPan.timelineIntervalSelector.min.addEventListener(
+      'change',
+      onClampDateChange
+    );
+    this.leftPan.timelineIntervalSelector.max.addEventListener(
+      'change',
+      onClampDateChange
+    );
+
+    /** @type {TimelineEventEditor} */
+    let currentEventEditor = null;
+    this.leftPan.addTimelineEventButton.addEventListener('click', () => {
+      if (currentEventEditor) currentEventEditor.remove();
+      currentEventEditor = new TimelineEventEditor('add_new_event_editor');
+      this.eventContainer.appendChild(currentEventEditor);
+
+      currentEventEditor.cancelButton.addEventListener('click', () => {
+        currentEventEditor.remove();
+        currentEventEditor = null;
+      });
+    });
   }
 
-  _updateCanvasReferential(
-    min = this.ui.minClampDateSelector.value,
-    max = this.ui.maxClampDateSelector.value
+  _updateReferential(
+    min = this.leftPan.timelineIntervalSelector.min.value,
+    max = this.leftPan.timelineIntervalSelector.max.value
   ) {
     this.totalDayCount = max.diff(min); // number of day between min and max
     console.info('total days = ' + this.totalDayCount);
@@ -213,7 +243,7 @@ export class Timeline extends HTMLElement {
     this.translation = this.translation;
   }
 
-  _drawCanvas(min = this.ui.minClampDateSelector.value) {
+  _drawCanvas(min = this.leftPan.timelineIntervalSelector.min.value) {
     // console.time('draw canvas');
 
     const context = this.canvas.getContext('2d');

@@ -8,7 +8,8 @@
     "build": "cross-env NODE_ENV=production webpack --config ./webpack.config.js",
     "build-dev": "cross-env NODE_ENV=development webpack --config ./webpack.config.js",
     "dev": "cross-env NODE_ENV=development nodemon --watch ./src  --delay 2500ms ./bin/dev.js -e js,css",
-    "test": "node ./test/unit.js"
+    "test": "node ./test/unit.js",
+    "create-user": "node ./bin/backend/createUser.js"
   },
   "repository": {
     "type": "git",

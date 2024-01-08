@@ -50,11 +50,19 @@ class LocalStorageInput extends HTMLElement {
     this.appendChild(this.input);
 
     if (valueType == LocalStorageInput.VALUE_TYPE.INTEGER) {
-      const localStorageInteger = localStorageInt(id, () =>
+      const localStorageIntegerValue = localStorageInt(id, () =>
         parseInt(this.input.value)
       );
-      this.input.value = isNumeric(localStorageInteger)
-        ? localStorageInteger
+      this.input.value = isNumeric(localStorageIntegerValue)
+        ? localStorageIntegerValue
+        : defaultValue;
+    } else if (valueType == LocalStorageInput.VALUE_TYPE.STRING) {
+      const localStorageStringValue = localStorageString(
+        id,
+        () => this.input.value
+      );
+      this.input.value = localStorageStringValue
+        ? localStorageStringValue
         : defaultValue;
     }
   }
@@ -63,6 +71,7 @@ class LocalStorageInput extends HTMLElement {
 // enum of value type for local storage input
 LocalStorageInput.VALUE_TYPE = {
   INTEGER: 0,
+  STRING: 1,
 };
 
 window.customElements.define('local-storage-input', LocalStorageInput);
@@ -174,13 +183,97 @@ class TimelineDateSelector extends LocalStorageDetails {
 
 window.customElements.define('timeline-date-selector', TimelineDateSelector);
 
-export class TimelineUI extends HTMLElement {
+export class TimelineDateIntervalSelector extends HTMLElement {
+  constructor(id, labelMinText, labelMaxText) {
+    super();
+
+    /** @type {TimelineDateSelector} */
+    this.min = new TimelineDateSelector(
+      id + '_min',
+      labelMinText,
+      TimelineDate.MIN_TIMELINE_DATE
+    );
+    this.appendChild(this.min);
+
+    /** @type {TimelineDateSelector} */
+    this.max = new TimelineDateSelector(
+      id + '_max',
+      labelMaxText,
+      TimelineDate.MAX_TIMELINE_DATE
+    );
+    this.appendChild(this.max);
+
+    // listeners
+    this.min.addEventListener('change', () => {
+      this.min.magnetize();
+
+      // clamp
+      this.min.value = this.min.value.clamp(
+        TimelineDate.MIN_TIMELINE_DATE,
+        this.max.value.subDay()
+      );
+    });
+
+    this.max.addEventListener('change', () => {
+      this.max.magnetize();
+
+      // clamp
+      this.max.value = this.max.value.clamp(
+        this.min.value.add(1),
+        TimelineDate.MAX_TIMELINE_DATE
+      );
+    });
+  }
+}
+
+window.customElements.define(
+  'timeline-date-interval-selector',
+  TimelineDateIntervalSelector
+);
+
+export class TimelineEventEditor extends HTMLElement {
+  constructor(id) {
+    super();
+
+    /** @type {LocalStorageInput} */
+    this.titleInput = new LocalStorageInput(
+      id + '_title',
+      'Titre',
+      'text',
+      LocalStorageInput.VALUE_TYPE.STRING,
+      ''
+    );
+    this.appendChild(this.titleInput);
+
+    /** @type {TimelineDateIntervalSelector} */
+    this.intervalSelector = new TimelineDateIntervalSelector(
+      id + '_intervalSelector',
+      'Début',
+      'Fin'
+    );
+    this.appendChild(this.intervalSelector);
+
+    /** @type {HTMLElement} */
+    this.createEventButton = document.createElement('button');
+    this.createEventButton.innerText = 'Créer';
+    this.appendChild(this.createEventButton);
+
+    /** @type {HTMLElement} */
+    this.cancelButton = document.createElement('button');
+    this.cancelButton.innerText = 'Annuler';
+    this.appendChild(this.cancelButton);
+  }
+}
+
+window.customElements.define('timeline-event-editor', TimelineEventEditor);
+
+export class TimelineLeftPan extends HTMLElement {
   constructor() {
     super();
 
-    // css
-    this.classList.add('timeline-ui');
+    this.classList.add('timeline-left-pan');
 
+    /** @type {HTMLElement} */
     const disconnectButton = document.createElement('button');
     disconnectButton.innerText = 'Deconnexion';
     disconnectButton.classList.add('marged');
@@ -190,43 +283,20 @@ export class TimelineUI extends HTMLElement {
     };
     this.appendChild(disconnectButton);
 
-    /** @type {TimelineDateSelector} */
-    this.minClampDateSelector = new TimelineDateSelector(
-      'minClampDateSelector',
+    /** @type {TimelineDateIntervalSelector} */
+    this.timelineIntervalSelector = new TimelineDateIntervalSelector(
+      'timelineIntervalSelector',
       'Minimum date',
-      TimelineDate.MIN_TIMELINE_DATE
+      'Maximum date'
     );
-    this.appendChild(this.minClampDateSelector);
+    this.appendChild(this.timelineIntervalSelector);
 
-    /** @type {TimelineDateSelector} */
-    this.maxClampDateSelector = new TimelineDateSelector(
-      'maxClampDateSelector',
-      'Maximum date',
-      TimelineDate.MAX_TIMELINE_DATE
-    );
-    this.appendChild(this.maxClampDateSelector);
-
-    // listeners
-    this.minClampDateSelector.addEventListener('change', () => {
-      this.minClampDateSelector.magnetize();
-
-      // clamp
-      this.minClampDateSelector.value = this.minClampDateSelector.value.clamp(
-        TimelineDate.MIN_TIMELINE_DATE,
-        this.maxClampDateSelector.value.subDay()
-      );
-    });
-
-    this.maxClampDateSelector.addEventListener('change', () => {
-      this.maxClampDateSelector.magnetize();
-
-      // clamp
-      this.maxClampDateSelector.value = this.maxClampDateSelector.value.clamp(
-        this.minClampDateSelector.value.add(1),
-        TimelineDate.MAX_TIMELINE_DATE
-      );
-    });
+    /** @type {HTMLElement} */
+    this.addTimelineEventButton = document.createElement('button');
+    this.addTimelineEventButton.innerText = 'Ajouter un évènement';
+    this.addTimelineEventButton.classList.add('marged');
+    this.appendChild(this.addTimelineEventButton);
   }
 }
 
-window.customElements.define('timeline-ui', TimelineUI);
+window.customElements.define('timeline-left-pan', TimelineLeftPan);

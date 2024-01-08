@@ -3,29 +3,43 @@
   --timeline-color-2: #e1e1d0;
   --timeline-color-3: #8c8c5a;
 
-  --timeline-ui-width-percent: 20%;
+  --timeline-width-percent: 20%;
+  --timeline-canvas-height-percent: 33%;
 }
 
 .timeline {
+  position: absolute;
   width: 100%;
   height: 100%;
 }
 
-.timeline canvas {
-  background-color: var(--timeline-color-3);
-  width: calc(100% - var(--timeline-ui-width-percent));
-  margin-left: var(--timeline-ui-width-percent);
+.timeline-event-container {
+  position: absolute;
+  background-color: red;
+  height: calc(100% - var(--timeline-canvas-height-percent));
+  width: calc(100% - var(--timeline-width-percent));
+  left: var(--timeline-width-percent);
+  top: var(--timeline-canvas-height-percent);
 }
 
-.timeline-ui {
+.timeline canvas {
+  position: absolute;
+  background-color: var(--timeline-color-3);
+  width: calc(100% - var(--timeline-width-percent));
+  left: var(--timeline-width-percent);
+  height: var(--timeline-canvas-height-percent);
+}
+
+.timeline-left-pan {
+  position: absolute;
   background-color: var(--timeline-color-1);
   height: 100%;
-  width: var(--timeline-ui-width-percent);
+  width: var(--timeline-width-percent);
   position: absolute;
   color: var(--timeline-color-2);
 }
 
-.timeline-ui button,
+.timeline button,
 summary {
   cursor: pointer;
 }
