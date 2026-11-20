@@ -5,6 +5,8 @@
   "description": "Browser extension drawing an illustrated timeline from the dates of the page being read",
   "type": "module",
   "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js --watch",
     "test": "node --test \"test/**/*.test.js\"",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "esbuild": "^0.28.2",
     "eslint": "^10.8.1",
     "globals": "^17.10.0",
     "prettier": "3.9.6"

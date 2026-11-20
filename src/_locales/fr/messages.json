@@ -1,0 +1,18 @@
+{
+  "extensionName": {
+    "message": "Frise chronologique",
+    "description": "Name of the extension, shown in the browser's extension list."
+  },
+  "extensionDescription": {
+    "message": "Dessine une frise chronologique imagée à partir des dates de l'article Wikipédia que vous lisez.",
+    "description": "Description of the extension, shown in the browser's extension list."
+  },
+  "bannerTitle": {
+    "message": "Frise chronologique",
+    "description": "Heading of the banner injected above a Wikipedia article."
+  },
+  "bannerEmpty": {
+    "message": "Aucune date lue sur cette page pour l'instant.",
+    "description": "Shown in the banner while it holds no event."
+  }
+}

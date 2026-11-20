@@ -5,11 +5,17 @@ you are on — Wikipedia first — and draws them as an illustrated timeline: ea
 event with the picture of its article, leading back to it. You can also keep a
 timeline of your own, in layers, filled from what you read.
 
-Work in progress: only the date arithmetic exists so far.
+Work in progress: on a Wikipedia article the extension shows an empty banner,
+where the timeline will be drawn.
 
 ```bash
 npm install
 npm test
+npm run build   # dist/chrome and dist/firefox, each loadable unpacked
 ```
+
+Load it in Chrome from `chrome://extensions` (developer mode, _Load unpacked_,
+`dist/chrome`), in Firefox from `about:debugging#/runtime/this-firefox`
+(_Load Temporary Add-on_, `dist/firefox/manifest.json`).
 
 Contributing: [CLAUDE.md](CLAUDE.md) and [docs/CONVENTIONS.md](docs/CONVENTIONS.md).

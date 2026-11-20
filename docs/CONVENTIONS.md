@@ -41,10 +41,35 @@ live ones. An item only partly done is rewritten down to what is left.
 
 Everything is ESM (`"type": "module"`).
 
-| Path          | Runs in                                               |
-| ------------- | ----------------------------------------------------- |
-| `src/shared/` | anywhere: content script, service worker, popup, Node |
-| `test/`       | Node (`node:test`), mirroring `src/`                  |
+| Path              | Runs in                                               |
+| ----------------- | ----------------------------------------------------- |
+| `src/shared/`     | anywhere: content script, service worker, popup, Node |
+| `src/content/`    | a web page, as a content script (DOM + `chrome.*`)    |
+| `src/manifest.js` | Node, at build time; pure, so the tests reach it      |
+| `src/_locales/`   | copied as is into the built extension                 |
+| `scripts/`        | Node: the build                                       |
+| `test/`           | Node (`node:test`), mirroring `src/`                  |
+| `dist/<browser>/` | the built extension, gitignored                       |
+
+**One source, specialised per browser.** `src/manifest.js` writes the
+manifest once; what only Chrome or only Firefox needs is a row of its
+`TARGETS` table, and `scripts/build.js` builds every target into
+`dist/<browser>/`. Two hand-kept manifests would drift apart. The build finds
+its entry points in the manifest itself: a script the manifest loads at
+`content/x.js` is bundled from `src/content/x.js`, so a new script is added in
+one place. Both browsers expose the extension API as `chrome.*`, so the code
+uses that name and needs no polyfill.
+
+**A content script draws in a shadow root**, so that the page's styles do not
+reach the extension's markup and its own do not leak into the page. On
+Wikipedia it takes its colours from the site's design tokens
+(`var(--color-base, …)`), which cross the shadow boundary, so it follows the
+reader's light or dark theme.
+
+**Every user-visible string is in `src/_locales/{en,fr}/messages.json`**,
+English and French for now. `test/locales.test.js` fails on a key missing
+from one language, a key the code asks for that does not exist, or a key
+nobody uses.
 
 **`src/shared/` is pure.** No DOM, no `chrome.*`/`browser.*`, no Node module.
 It is what the tests reach without a browser, so the more of the logic lives

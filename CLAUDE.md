@@ -28,6 +28,8 @@ a bug: fix the document in the same change.
 npm test               # node --test over test/**/*.test.js
 npm run lint           # eslint . — must be clean
 npm run format:check   # prettier — must be clean (npm run format to fix)
+npm run build          # dist/chrome and dist/firefox, each loadable unpacked
+npm run dev            # the same, rebuilt on every script change
 ```
 
 Run one test file while iterating: `node --test test/shared/TimelineDate.test.js`.
@@ -56,8 +58,8 @@ Code
    set, a resource to release, or an edge to detect; what can be worked out
    from another field is a method. CONVENTIONS §4.
 7. Every user-visible string goes through the extension's i18n
-   (`_locales/{en,fr}/messages.json` once the extension exists), in both
-   languages.
+   (`src/_locales/{en,fr}/messages.json`), in both languages; a test fails on
+   a key missing from one language or unused.
 
 Testing and delivery
 
@@ -88,14 +90,20 @@ Git
 ## Where things live
 
 ```
+src/manifest.js                the manifest, one source specialised per browser (Chrome, Firefox)
+src/content/wikipedia.js       content script: the banner above a Wikipedia article (shadow DOM)
+src/_locales/{en,fr}/          every user-visible string
 src/shared/TimelineDate.js     a day from the Big Bang to a billion years ahead, beyond Date's range
-test/shared/                   mirrors src/shared/
+src/shared/wikipediaPage.js    what a Wikipedia page is, from its body classes
+scripts/build.js               esbuild: dist/chrome and dist/firefox; --watch for dev
+test/                          mirrors src/
 management/                    backlog and plan, French, gitignored
 ```
 
 ## Current state
 
-**Where it stands.** The repository was an older web app (a canvas timeline
-behind a sign-in); only its date arithmetic, `TimelineDate`, is kept. The
-extension itself does not exist yet. The plan, phase by phase, is
+**Where it stands.** A Manifest V3 extension built by esbuild for Chrome and
+Firefox. On a Wikipedia article it injects an empty banner above the text,
+where the timeline will be drawn; no date is read from the page yet.
+`TimelineDate` holds the date arithmetic. The plan, phase by phase, is
 `management/backlog/frise.md`.
