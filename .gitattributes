@@ -1,0 +1,4 @@
+# LF everywhere, whatever core.autocrlf says: Prettier checks for it.
+* text=auto eol=lf
+*.png binary
+*.ico binary

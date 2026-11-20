@@ -1,5 +1,9 @@
 node_modules
+dist
+.env
 .vscode
 .vs
-dist
+# The old backend's local database, kept on the machine, never tracked.
 database
+# Backlog, plan and notes: local only, in French (see management/README.md).
+management
