@@ -9,6 +9,7 @@ import {
   placeCards,
   spanOf,
   weightOf,
+  weightOfEntry,
 } from "../../src/shared/timelineLayout.js";
 
 const PAGE = "https://fr.wikipedia.org/wiki/R%C3%A9volution_fran%C3%A7aise";
@@ -112,6 +113,15 @@ describe("opening window", () => {
     assert.ok(view.start > 1700, `${view.start}`);
   });
 
+  it("shows a period whole, to its end", () => {
+    const view = initialView([
+      { start: 1789, end: 1790 },
+      { start: 1789, end: 1800 },
+    ]);
+    assert.ok(view.start < 1789, `${view.start}`);
+    assert.ok(view.end >= 1800, `${view.end}`);
+  });
+
   it("opens on something sensible for a single date or none", () => {
     const one = initialView([{ start: 1789 }]);
     assert.ok(one.start < 1789 && one.end > 1789);
@@ -202,6 +212,37 @@ describe("cards", () => {
     assert.deepEqual(
       placed.map(({ index }) => index),
       [0],
+    );
+  });
+});
+
+describe("weight of an entry of the reader's timeline", () => {
+  /**
+   * @param {object} [fields]
+   * @returns {import("../../src/shared/myTimeline.js").Entry}
+   */
+  const entry = (fields = {}) => ({
+    start: { year: 1789, month: 0, day: 1, precision: "year" },
+    end: null,
+    approximate: false,
+    image: null,
+    ...fields,
+  });
+
+  it("weighs its date like an event of a page", () => {
+    const range = { year: 1799, month: 0, day: 1, precision: "year" };
+    const century = { year: 1701, month: 0, day: 1, precision: "century" };
+    assert.equal(weightOfEntry(entry()), 0);
+    assert.equal(weightOfEntry(entry({ end: range })), 1);
+    assert.equal(weightOfEntry(entry({ start: century })), -1);
+    assert.equal(weightOfEntry(entry({ approximate: true })), -1);
+  });
+
+  it("weighs more with a picture", () => {
+    assert.equal(weightOfEntry(entry({ image: { photo: "p1" } })), 2);
+    assert.equal(
+      weightOfEntry(entry({ image: { url: "https://x/y.jpg" } })),
+      2,
     );
   });
 });

@@ -95,6 +95,34 @@ export function panView(view, share) {
 }
 
 /**
+ * The window that keeps the dates under one or two fingers under them as
+ * they move: one finger pans, two pan and zoom at once (a pinch).
+ *
+ * @param {View} view the window when the fingers came down
+ * @param {number[]} from where the fingers came down, 0 to 1 across the
+ *   width, one or two of them
+ * @param {number[]} to where they are now, in the same order
+ * @returns {View}
+ */
+export function dragView(view, from, to) {
+  const span = view.end - view.start;
+  const yearAt = (share) => view.start + share * span;
+  if (from.length < 2 || Math.abs(to[1] - to[0]) < 1e-6) {
+    const shift = (from[0] - to[0]) * span;
+    return clampView({ start: view.start + shift, end: view.end + shift });
+  }
+  // The two dates under the fingers land exactly under them again.
+  const a = yearAt(from[0]);
+  const b = yearAt(from[1]);
+  const next = Math.min(
+    Math.max((b - a) / (to[1] - to[0]), MIN_SPAN),
+    MAX_SPAN,
+  );
+  const start = a - to[0] * next;
+  return clampView({ start, end: start + next });
+}
+
+/**
  * @param {View} view
  * @param {number} value in years
  * @param {number} width of the window, in pixels

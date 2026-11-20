@@ -1,7 +1,10 @@
 /**
  * Content script for Wikipedia articles: reads the dates of the article and
  * injects, above the article's text, a banner that draws them as a timeline
- * (`timelineView.js`).
+ * (`timelineView.js`). Each card has a + that adds its event to the
+ * reader's own timeline, and selecting text in the article shows a
+ * « + My timeline » button that adds the date selected, read leniently, or
+ * opens the form to type one the extraction missed.
  *
  * The banner lives in a shadow root so that Wikipedia's styles do not reach
  * it and its own do not leak into the page. Its colours are Wikipedia's own
@@ -9,7 +12,9 @@
  * reader's light or dark theme in every skin that defines them.
  */
 
+import { OPEN_MY_TIMELINE } from "../manifest.js";
 import { LANGUAGES, extractEvents } from "../shared/dateExtraction.js";
+import { datePartOf } from "../shared/myTimeline.js";
 import { hasOwnLink, spanOf, weightOf } from "../shared/timelineLayout.js";
 import {
   articleTitle,
@@ -18,7 +23,9 @@ import {
   pageLanguage,
   summaryUrl,
 } from "../shared/wikipediaPage.js";
-import { TIMELINE_STYLE, TimelineView } from "./timelineView.js";
+import { FORM_STYLE, openEntryForm } from "../ui/entryForm.js";
+import { pictureOf } from "../ui/pictures.js";
+import { TIMELINE_STYLE, TimelineView } from "../ui/timelineView.js";
 
 /** The id of the banner's host element, to never inject it twice. */
 const HOST_ID = "timeline-extension-banner";
@@ -95,19 +102,75 @@ const STYLE = `
     font-weight: bold;
   }
   p {
-    flex: 1;
+    /* At a phone's width, the count takes a line of its own. */
+    flex: 1 1 12em;
     margin: 0;
     color: var(--color-subtle, #54595d);
   }
+  header {
+    flex-wrap: wrap;
+  }
   ${TIMELINE_STYLE}
+  @media (pointer: coarse) {
+    header > button { min-height: 2.25em; }
+  }
 `;
 
 /**
- * The text of a paragraph or list item, and the article links in it, with
- * their offsets into that text. A nested list is left out: its items are
- * blocks of their own.
+ * The layer above the page the extension draws in outside the banner: the
+ * button beside a selection, the form's dialog, the note that an event was
+ * added.
+ */
+const OVERLAY_STYLE = `
+  :host {
+    all: initial;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 100;
+  }
+  [hidden] { display: none !important; }
+  .add-selection, .toast {
+    position: absolute;
+    font-family: sans-serif;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    border-radius: 2px;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+  }
+  .add-selection {
+    padding: 0.4em 0.8em;
+    cursor: pointer;
+    color: #fff;
+    background: var(--color-progressive, #36c);
+    border: 0;
+  }
+  .toast {
+    position: fixed;
+    left: 50vw;
+    bottom: 1.5em;
+    transform: translateX(-50%);
+    padding: 0.6em 1em;
+    color: var(--color-inverted, #fff);
+    background: var(--color-base, #202122);
+  }
+  @media (pointer: coarse) {
+    .add-selection { padding: 0.7em 1.1em; }
+  }
+  ${FORM_STYLE}
+`;
+
+/** How long the note that an event was added stays, in milliseconds. */
+const TOAST_DURATION = 2500;
+
+/**
+ * The text of a paragraph or list item, or of a selection, and the article
+ * links in it, with their offsets into that text. A nested list is left
+ * out: its items are blocks of their own.
  *
- * @param {Element} element
+ * @param {Element | DocumentFragment} element
  * @returns {{ text: string, links: { start: number, end: number, href: string }[] }}
  */
 function readBlock(element) {
@@ -191,40 +254,89 @@ function readArticle(content, title) {
 }
 
 /**
+ * What an event shows wherever it is drawn, on the banner or once added to
+ * the reader's timeline: its title, and its picture, that of the article it
+ * leads to and failing one that of its section or of the article.
+ *
+ * @param {import("../shared/dateExtraction.js").TimelineEvent} event
+ * @param {Map<string | null, Section>} sections
+ * @param {string} pageUrl the page, without a fragment
+ * @returns {{ title: string,
+ *   image: import("../shared/myTimeline.js").Image | null }}
+ */
+function lookOf(event, sections, pageUrl) {
+  const lead = sections.get(null);
+  const section = sections.get(event.section) ?? lead;
+  const fallback = section.image ?? lead.image;
+  const own = hasOwnLink(event, pageUrl);
+  const summary = own ? summaryUrl(event.link) : null;
+  return {
+    title: (own && articleTitle(event.link)) || section.title,
+    image: summary
+      ? { summary, fallback }
+      : fallback
+        ? { url: fallback }
+        : null,
+  };
+}
+
+/**
  * What the timeline draws of each event: where it falls, how much it
  * weighs, what its card says, shows and leads to.
  *
  * @param {import("../shared/dateExtraction.js").TimelineEvent[]} events
  * @param {Map<string | null, Section>} sections
  * @param {string} pageUrl the page, without a fragment
- * @returns {import("./timelineView.js").TimelineItem[]}
+ * @returns {import("../ui/timelineView.js").TimelineItem[]}
  */
 function itemsOf(events, sections, pageUrl) {
-  const lead = sections.get(null);
   return events.map((event) => {
-    const section = sections.get(event.section) ?? lead;
-    const own = hasOwnLink(event, pageUrl);
+    const { title, image } = lookOf(event, sections, pageUrl);
     return {
       ...spanOf(event),
       weight: weightOf(event, pageUrl),
       written: event.written,
-      title: own ? articleTitle(event.link) : section.title,
+      title,
       href: event.link,
       description: event.sentence.text,
-      summary: own ? summaryUrl(event.link) : null,
-      image: section.image ?? lead.image,
+      picture: () => pictureOf(image),
     };
   });
 }
 
 /**
- * Builds the banner's host element, its shadow root filled: a heading, how
- * many dates were read and, when there are any, the timeline.
+ * The form's first draft of an event of the page: its date, title, link,
+ * sentence and picture, and its section as a first tag.
  *
- * @param {import("./timelineView.js").TimelineItem[]} items
+ * @param {import("../shared/dateExtraction.js").TimelineEvent} event
+ * @param {Map<string | null, Section>} sections
+ * @param {string} pageUrl
+ * @returns {import("../ui/entryForm.js").Draft}
+ */
+function draftOf(event, sections, pageUrl) {
+  const lead = sections.get(null);
+  const section = sections.get(event.section) ?? lead;
+  return {
+    ...datePartOf(event),
+    ...lookOf(event, sections, pageUrl),
+    link: event.link,
+    description: event.sentence,
+    tags: [section.title],
+    source: { url: pageUrl, title: lead.title },
+  };
+}
+
+/**
+ * Builds the banner's host element, its shadow root filled: a heading, how
+ * many dates were read, a button to the reader's timeline and, when there
+ * are dates, the timeline, each card with a + that adds its event.
+ *
+ * @param {import("../ui/timelineView.js").TimelineItem[]} items
+ * @param {(index: number) => void} onAdd called with the index of the item
+ *   whose + was pressed
  * @returns {HTMLElement}
  */
-function createBanner(items) {
+function createBanner(items, onAdd) {
   const host = document.createElement("div");
   host.id = HOST_ID;
   const root = host.attachShadow({ mode: "closed" });
@@ -241,21 +353,204 @@ function createBanner(items) {
   summary.textContent = items.length
     ? chrome.i18n.getMessage("bannerCount", [String(items.length)])
     : chrome.i18n.getMessage("bannerEmpty");
+  const mine = document.createElement("button");
+  mine.type = "button";
+  mine.textContent = chrome.i18n.getMessage("myTimelineTitle");
+  mine.title = chrome.i18n.getMessage("myTimelineOpen");
+  mine.addEventListener("click", () =>
+    chrome.runtime.sendMessage(OPEN_MY_TIMELINE),
+  );
   header.append(title, summary);
   section.append(header);
   if (items.length) {
-    const timeline = new TimelineView(items);
+    const timeline = new TimelineView(items, {
+      action: {
+        text: "+",
+        label: chrome.i18n.getMessage("addToMyTimeline"),
+        run: onAdd,
+      },
+    });
     header.append(timeline.controls());
     section.append(timeline.element);
   }
+  header.append(mine);
 
   root.append(style, section);
   return host;
 }
 
 /**
+ * @typedef {object} Overlay
+ * @property {ShadowRoot} root where the form's dialog is put
+ * @property {HTMLButtonElement} button the button shown below a selection
+ * @property {HTMLElement} toast the note that an event was added
+ */
+
+/**
+ * Builds the layer the extension draws in above the page, outside the
+ * banner, and puts it at the end of the body.
+ *
+ * @returns {Overlay}
+ */
+function createOverlay() {
+  const host = document.createElement("div");
+  const root = host.attachShadow({ mode: "closed" });
+  const style = document.createElement("style");
+  style.textContent = OVERLAY_STYLE;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "add-selection";
+  button.textContent = chrome.i18n.getMessage("addSelection");
+  button.hidden = true;
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.setAttribute("role", "status");
+  toast.hidden = true;
+  root.append(style, button, toast);
+  document.body.append(host);
+  return { root, button, toast };
+}
+
+/**
+ * @typedef {object} Page
+ * @property {string} language
+ * @property {string} pageUrl the page, without a fragment
+ * @property {Element} story the article's text
+ * @property {Map<string | null, Section>} sections
+ */
+
+/**
+ * Opens the form on a draft and, once the reader saves, says where the
+ * event went.
+ *
+ * @param {Overlay} overlay
+ * @param {Page} page
+ * @param {import("../ui/entryForm.js").Draft} draft
+ */
+async function addToMyTimeline(overlay, page, draft) {
+  const saved = await openEntryForm(overlay.root, {
+    draft,
+    isNew: true,
+    languages: [page.language, chrome.i18n.getUILanguage().slice(0, 2)],
+  });
+  if (!saved) return;
+  const { toast } = overlay;
+  toast.textContent = chrome.i18n.getMessage("savedTo", [saved.layer.name]);
+  toast.hidden = false;
+  setTimeout(() => {
+    toast.hidden = true;
+  }, TOAST_DURATION);
+}
+
+/**
+ * The anchor of the section a node of the article is in: that of the last
+ * heading before it, null in the lead.
+ *
+ * @param {Node} node
+ * @param {Element} story
+ * @returns {string | null}
+ */
+function sectionAt(node, story) {
+  let section = null;
+  for (const heading of story.querySelectorAll("h2, h3, h4, h5, h6")) {
+    const after = heading.compareDocumentPosition(node);
+    if (!(after & Node.DOCUMENT_POSITION_FOLLOWING)) break;
+    section = anchorOf(heading);
+  }
+  return section;
+}
+
+/**
+ * The form's first draft of a selection: the date in it, read leniently
+ * since the reader pointed at it; failing one, everything but the date,
+ * the selection kept as the description, for the reader to type the date.
+ *
+ * @param {Range} range
+ * @param {Page} page
+ * @returns {import("../ui/entryForm.js").Draft}
+ */
+function draftOfSelection(range, { language, pageUrl, story, sections }) {
+  const section = sectionAt(range.startContainer, story);
+  const block = { ...readBlock(range.cloneContents()), section };
+  const [event] = extractEvents(block, {
+    language,
+    pageUrl,
+    now: new Date().getFullYear(),
+    lenient: true,
+  });
+  if (event) return draftOf(event, sections, pageUrl);
+  const lead = sections.get(null);
+  const current = sections.get(section) ?? lead;
+  const image = current.image ?? lead.image;
+  return {
+    title: current.title,
+    link: section ? `${pageUrl}#${section}` : pageUrl,
+    description: { text: block.text, links: block.links },
+    image: image ? { url: image } : null,
+    tags: [current.title],
+    source: { url: pageUrl, title: lead.title },
+  };
+}
+
+/** How far below a selection its button goes: below a finger's handles. */
+const BUTTON_OFFSET = { fine: 8, coarse: 36 };
+
+/**
+ * Shows the add button below the text the reader selects in the article,
+ * and opens the form on it when pressed.
+ *
+ * @param {Overlay} overlay
+ * @param {Page} page
+ */
+function watchSelection(overlay, page) {
+  const { button } = overlay;
+  let range = null;
+  const update = () => {
+    const selection = document.getSelection();
+    const current =
+      selection.rangeCount && !selection.isCollapsed
+        ? selection.getRangeAt(0)
+        : null;
+    if (
+      !current ||
+      !page.story.contains(current.commonAncestorContainer) ||
+      !selection.toString().trim()
+    ) {
+      button.hidden = true;
+      return;
+    }
+    range = current.cloneRange();
+    const rects = current.getClientRects();
+    const last = rects[rects.length - 1] ?? current.getBoundingClientRect();
+    const offset = matchMedia("(pointer: coarse)").matches
+      ? BUTTON_OFFSET.coarse
+      : BUTTON_OFFSET.fine;
+    button.hidden = false;
+    const left = Math.max(
+      8,
+      Math.min(last.left, innerWidth - button.offsetWidth - 8),
+    );
+    button.style.left = `${left + scrollX}px`;
+    button.style.top = `${last.bottom + scrollY + offset}px`;
+  };
+  let timer = 0;
+  document.addEventListener("selectionchange", () => {
+    clearTimeout(timer);
+    // A selection being dragged changes many times a second.
+    timer = setTimeout(update, 200);
+  });
+  // Pressing the button must not clear the selection it is about.
+  button.addEventListener("pointerdown", (event) => event.preventDefault());
+  button.addEventListener("click", () => {
+    button.hidden = true;
+    if (range) addToMyTimeline(overlay, page, draftOfSelection(range, page));
+  });
+}
+
+/**
  * Reads the article's dates and injects the banner above its text, once, on
- * articles of a Wikipedia whose language the extension reads.
+ * articles of a Wikipedia whose language the extension reads; then lets the
+ * reader add an event, or a selected date, to their own timeline.
  */
 function injectBanner() {
   if (!isArticleView(document.body.className)) return;
@@ -274,7 +569,13 @@ function injectBanner() {
     articleTitle(pageUrl) ?? document.title,
   );
   const events = blocks.flatMap((block) => extractEvents(block, options));
-  content.before(createBanner(itemsOf(events, sections, pageUrl)));
+  const page = { language, pageUrl, story, sections };
+  const overlay = createOverlay();
+  const banner = createBanner(itemsOf(events, sections, pageUrl), (index) =>
+    addToMyTimeline(overlay, page, draftOf(events[index], sections, pageUrl)),
+  );
+  content.before(banner);
+  watchSelection(overlay, page);
 }
 
 injectBanner();

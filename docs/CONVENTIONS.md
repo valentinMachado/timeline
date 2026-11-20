@@ -41,23 +41,27 @@ live ones. An item only partly done is rewritten down to what is left.
 
 Everything is ESM (`"type": "module"`).
 
-| Path              | Runs in                                               |
-| ----------------- | ----------------------------------------------------- |
-| `src/shared/`     | anywhere: content script, service worker, popup, Node |
-| `src/content/`    | a web page, as a content script (DOM + `chrome.*`)    |
-| `src/manifest.js` | Node, at build time; pure, so the tests reach it      |
-| `src/_locales/`   | copied as is into the built extension                 |
-| `scripts/`        | Node: the build                                       |
-| `test/`           | Node (`node:test`), mirroring `src/`                  |
-| `dist/<browser>/` | the built extension, gitignored                       |
+| Path                | Runs in                                                           |
+| ------------------- | ----------------------------------------------------------------- |
+| `src/shared/`       | anywhere: content script, service worker, popup, Node             |
+| `src/content/`      | a web page, as a content script (DOM + `chrome.*`)                |
+| `src/ui/`           | DOM + `chrome.*`, in a content script or a page alike             |
+| `src/pages/`        | the extension's own pages (`pages/x.html` + `x.js`)               |
+| `src/background.js` | the background script: a worker (Chrome), an event page (Firefox) |
+| `src/manifest.js`   | Node, at build time; pure, so the tests reach it                  |
+| `src/_locales/`     | copied as is into the built extension                             |
+| `scripts/`          | Node: the build                                                   |
+| `test/`             | Node (`node:test`), mirroring `src/`                              |
+| `dist/<browser>/`   | the built extension, gitignored                                   |
 
 **One source, specialised per browser.** `src/manifest.js` writes the
 manifest once; what only Chrome or only Firefox needs is a row of its
 `TARGETS` table, and `scripts/build.js` builds every target into
 `dist/<browser>/`. Two hand-kept manifests would drift apart. The build finds
 its entry points in the manifest itself: a script the manifest loads at
-`content/x.js` is bundled from `src/content/x.js`, so a new script is added in
-one place. Both browsers expose the extension API as `chrome.*`, so the code
+`content/x.js` is bundled from `src/content/x.js`, and a page of `PAGES` at
+`pages/x.html` is copied and loads `pages/x.js`, so a new script or page is
+added in one place. Both browsers expose the extension API as `chrome.*`, so the code
 uses that name and needs no polyfill.
 
 **A content script draws in a shadow root**, so that the page's styles do not
@@ -73,8 +77,18 @@ nobody uses.
 
 **`src/shared/` is pure.** No DOM, no `chrome.*`/`browser.*`, no Node module.
 It is what the tests reach without a browser, so the more of the logic lives
-there — date parsing, layout arithmetic — the more of it is tested. ESLint
-gives that folder no globals at all, so a stray `document` fails the lint.
+there — date parsing, layout arithmetic, the reader's timeline and its
+backups — the more of it is tested. ESLint gives that folder no globals but
+`URL`, which every place it runs has, so a stray `document` fails the lint.
+
+**Every user-visible string goes through a literal
+`chrome.i18n.getMessage("key")`**, never a helper or a key picked at run
+time: the locales test finds the keys the code uses by that call.
+
+**What works with a mouse works with a finger.** Firefox for Android runs the
+extension: a gesture has its touch form (a pinch for the wheel, a press for
+a hover), a control grows under `@media (pointer: coarse)`, and an API the
+mobile browser lacks (`menus`) is not used for something the reader needs.
 
 **Split by topic, never by line count.** A long file holding one coherent
 topic is fine.
@@ -135,7 +149,20 @@ of Wikipedia, both languages alike.
 is short — is a function of its fields (`WEIGHTS`, a table), never a stored
 field, so that a change of the rule reaches every event at once. Pictures
 come from Wikipedia's REST API, asked only for the cards on screen, a few at
-a time and once per page: the API is shared and asks for restraint.
+a time and once per page: the API is shared and asks for restraint. The
+page's timeline and the reader's own are one view (`TimelineView`) fed with
+items; what differs between them (colour, the button on a card, where a
+picture comes from) is a field of the item or an option, not a second view.
+
+**The reader's timeline** (`myTimeline.js`, stored by `src/ui/store.js`)
+lives in `chrome.storage.local`, one key per entry, layer and photo, so that
+two tabs never overwrite each other and listing never loads the photos. An
+entry is in one layer; tags cut across. A date the reader types or selects
+is read by the same extraction, leniently (a bare year is accepted). What
+comes from a file — an imported backup — is checked field by field, and a
+link is kept only when it is `http(s)`. Importing merges: the newer copy of
+an object wins, nothing is deleted, so a phone's backup reaches a computer
+without losing what is there.
 
 ---
 

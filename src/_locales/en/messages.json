@@ -26,7 +26,7 @@
     }
   },
   "timelineLabel": {
-    "message": "Timeline: the wheel zooms, a drag pans; arrow keys, + and - once focused.",
+    "message": "Timeline: the wheel or two fingers zoom, a drag pans; arrow keys, + and - once focused.",
     "description": "Accessible name of the timeline, which says how to move it."
   },
   "zoomIn": {
@@ -82,6 +82,228 @@
       "count": {
         "content": "$1",
         "example": "4.5"
+      }
+    }
+  },
+  "myTimelineTitle": {
+    "message": "My timeline",
+    "description": "Title of the reader's own timeline: its page, and the banner's button to it."
+  },
+  "myTimelineOpen": {
+    "message": "Open my timeline",
+    "description": "Tooltip of the toolbar button and of the banner's button that open the reader's timeline."
+  },
+  "addToMyTimeline": {
+    "message": "Add to my timeline",
+    "description": "The + on a card of the banner's timeline, and the title of the form that adds an event."
+  },
+  "addSelection": {
+    "message": "+ My timeline",
+    "description": "Button shown below text selected in an article: adds the date in it to the reader's timeline."
+  },
+  "savedTo": {
+    "message": "Added to “$LAYER$”",
+    "description": "Note shown once an event is added to the reader's timeline.",
+    "placeholders": {
+      "layer": {
+        "content": "$1",
+        "example": "My timeline"
+      }
+    }
+  },
+  "defaultLayerName": {
+    "message": "My timeline",
+    "description": "Name of the layer made when the reader adds a first event."
+  },
+  "editEntry": {
+    "message": "Edit",
+    "description": "Button that opens the form of an event of the reader's timeline; title of that form."
+  },
+  "deleteEntry": {
+    "message": "Delete",
+    "description": "Button of the form that deletes the event."
+  },
+  "confirmDeleteEntry": {
+    "message": "Delete this event from your timeline?",
+    "description": "Asked before an event of the reader's timeline is deleted."
+  },
+  "fieldDate": {
+    "message": "Date",
+    "description": "Label of the form's date field."
+  },
+  "fieldDateHint": {
+    "message": "As a page would write it: 14 July 1789, 1914–1918, 500 BC, 66 million years ago.",
+    "description": "Hint below the form's date field."
+  },
+  "dateRead": {
+    "message": "Date recognised.",
+    "description": "Status of the form's date field when the date written is read."
+  },
+  "dateNotRead": {
+    "message": "No date recognised in this text.",
+    "description": "Status of the form's date field when no date is read."
+  },
+  "fieldTitle": {
+    "message": "Title",
+    "description": "Label of the form's title field."
+  },
+  "fieldLink": {
+    "message": "Link",
+    "description": "Label of the form's field for the address the event leads to."
+  },
+  "fieldDescription": {
+    "message": "Description",
+    "description": "Label of the form's description field."
+  },
+  "fieldDescriptionHint": {
+    "message": "Write a link as [its text](https://…).",
+    "description": "Hint below the description field: how to write a link."
+  },
+  "fieldImage": {
+    "message": "Picture",
+    "description": "Legend of the form's picture section."
+  },
+  "fieldImageUrl": {
+    "message": "Address of a picture online",
+    "description": "Label of the field for the URL of a picture."
+  },
+  "choosePhoto": {
+    "message": "Choose a photo",
+    "description": "Button that picks a photo of the device (the camera, on a phone)."
+  },
+  "removeImage": {
+    "message": "Remove",
+    "description": "Button that removes the event's picture."
+  },
+  "photoFailed": {
+    "message": "This picture could not be read.",
+    "description": "Shown when a picked file is not a picture the browser reads."
+  },
+  "fieldLayer": {
+    "message": "Layer",
+    "description": "Label of the form's layer field."
+  },
+  "newLayerOption": {
+    "message": "New layer…",
+    "description": "Last choice of the form's layer field: names a new layer."
+  },
+  "newLayerName": {
+    "message": "Name of the new layer",
+    "description": "Placeholder of the field naming a new layer."
+  },
+  "fieldTags": {
+    "message": "Tags",
+    "description": "Label of the form's tags field."
+  },
+  "fieldTagsHint": {
+    "message": "Separated by commas; or pick one below.",
+    "description": "Hint below the tags field."
+  },
+  "save": {
+    "message": "Save",
+    "description": "Button that saves the form."
+  },
+  "cancel": {
+    "message": "Cancel",
+    "description": "Button that closes the form without saving."
+  },
+  "addEntry": {
+    "message": "Add an event",
+    "description": "Button of the timeline page that opens a blank form."
+  },
+  "exportButton": {
+    "message": "Export",
+    "description": "Button that saves the whole timeline, photos included, as a file."
+  },
+  "exportDone": {
+    "message": "Exported: $COUNT$ events.",
+    "description": "Status once the timeline is exported.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "importButton": {
+    "message": "Import",
+    "description": "Button that merges a backup file into the timeline."
+  },
+  "importDone": {
+    "message": "Imported: $COUNT$ items added or updated, nothing deleted.",
+    "description": "Status once a backup is merged.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "importFailed": {
+    "message": "This file is not a timeline backup.",
+    "description": "Status when the imported file is not a backup."
+  },
+  "emptyTimeline": {
+    "message": "Your timeline is empty. On a Wikipedia article, press the + of a card, or select a date in the text, to add it here.",
+    "description": "Shown on the timeline page while there is no event."
+  },
+  "layersHeading": {
+    "message": "Layers",
+    "description": "Heading of the layers panel."
+  },
+  "layerVisible": {
+    "message": "Show",
+    "description": "Checkbox that shows or hides a layer."
+  },
+  "layerColor": {
+    "message": "Colour",
+    "description": "Colour picker of a layer."
+  },
+  "layerName": {
+    "message": "Name of the layer",
+    "description": "Accessible name of a layer's name field."
+  },
+  "deleteLayer": {
+    "message": "Delete the layer",
+    "description": "Button that deletes a layer."
+  },
+  "confirmDeleteLayer": {
+    "message": "Delete the layer “$NAME$” and its $COUNT$ events?",
+    "description": "Asked before a layer and its events are deleted.",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Revolution"
+      },
+      "count": {
+        "content": "$2",
+        "example": "12"
+      }
+    }
+  },
+  "addLayer": {
+    "message": "Add",
+    "description": "Button that makes a new layer."
+  },
+  "tagsHeading": {
+    "message": "Tags",
+    "description": "Heading of the tag filter."
+  },
+  "noTags": {
+    "message": "No tag yet.",
+    "description": "Shown in the tag filter while no event has a tag."
+  },
+  "allTags": {
+    "message": "Show all",
+    "description": "Button that clears the tag filter."
+  },
+  "entriesHeading": {
+    "message": "Events ($COUNT$)",
+    "description": "Heading of the list of the events shown.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
       }
     }
   }

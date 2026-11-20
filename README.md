@@ -6,9 +6,12 @@ event with the picture of its article, leading back to it. You can also keep a
 timeline of your own, in layers, filled from what you read.
 
 Work in progress: on a French or English Wikipedia article, a banner above the
-text draws the article's dates as a timeline you zoom with the wheel and pan
-by dragging; each card shows the picture of the article it leads to. Your own
-timeline is not there yet.
+text draws the article's dates as a timeline you zoom with the wheel (or two
+fingers) and pan by dragging; each card shows the picture of the article it
+leads to. The + of a card, or the button that appears below text you select,
+adds the event to your own timeline: layers, tags, a description, a picture
+or a photo of yours. Open it from the extension's toolbar button; export it
+to a file to carry it to another device.
 
 ```bash
 npm install

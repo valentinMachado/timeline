@@ -95,12 +95,17 @@ export const LANGUAGES = Object.freeze(Object.keys(GRAMMARS));
  *   the link of an event whose sentence has none
  * @param {number} options.now the current year, which `il y a 66 millions
  *   d'années` counts back from
+ * @param {boolean} [options.lenient] reads a bare year without a cue: for a
+ *   text the reader points at (a selection, a field), where nothing else
+ *   could be meant
  * @returns {TimelineEvent[]} in the order of the text
  * @throws {RangeError} on a language without a grammar
  */
-export function extractEvents(block, { language, pageUrl, now }) {
-  const grammar = GRAMMARS[language];
-  if (!grammar) throw new RangeError(`No date grammar for "${language}"`);
+export function extractEvents(block, { language, pageUrl, now, lenient }) {
+  const base = GRAMMARS[language];
+  if (!base) throw new RangeError(`No date grammar for "${language}"`);
+  // Every rule is handed the grammar; the cue rule reads `lenient` from it.
+  const grammar = lenient ? { ...base, lenient: true } : base;
   const { text } = block;
   const mentions = scan(text, grammar);
   const found = [];
@@ -322,7 +327,7 @@ function contextOf(text, start, end, grammar) {
     `(?:${grammar.yearCues})\\s*(?:${articles})?`,
   );
   return {
-    cue: strong || lineStart,
+    cue: strong || lineStart || Boolean(grammar.lenient),
     // `(291)` may be a count as well as a year.
     weakCue: parenthesised || endsWithWord(before, grammar.weakYearCues),
     unitAfter: new RegExp(`^\\s*(?:${grammar.units})(?![\\p{L}])`, "iu").test(

@@ -91,16 +91,23 @@ Git
 
 ```
 src/manifest.js                the manifest, one source specialised per browser (Chrome, Firefox)
-src/content/wikipedia.js       content script: article → text blocks → events; the banner (shadow DOM)
-src/content/timelineView.js    the timeline drawn in the banner: axis, marks, cards; wheel, drag, keys
-src/content/summaries.js       article thumbnails from the REST API, only for cards on screen
+src/content/wikipedia.js       content script: article → events; the banner (shadow DOM); + on a card, the selection button
+src/background.js              opens the reader's timeline (toolbar button, banner's button)
+src/pages/mytimeline.{html,js} the reader's timeline: layers, tag filter, list, export / import
+src/ui/timelineView.js         a timeline drawn: axis, marks, cards; wheel, drag, pinch, keys; page's or reader's
+src/ui/entryForm.js            the form of an entry of the reader's timeline, in a modal dialog
+src/ui/store.js                the reader's timeline in chrome.storage.local, one key per object
+src/ui/summaries.js            article thumbnails from the REST API, only for cards on screen
+src/ui/pictures.js, photos.js  an entry's picture (thumbnail, URL, local photo); a photo brought down to size
 src/_locales/{en,fr}/          every user-visible string
 src/shared/TimelineDate.js     a day from the Big Bang to a billion years ahead, beyond Date's range
 src/shared/dateExtraction.js   a block of text and its links → timeline events (dates, precision, link)
 src/shared/dateGrammars.js     how each language writes a date, as tables (fr, en)
 src/shared/wikipediaPage.js    what a Wikipedia page is: article view, language, article links
 src/shared/timeScale.js        a date as years; the window's zoom and pan; the graduations
-src/shared/timelineLayout.js   an event's weight; which events get a card at a zoom, and where
+src/shared/timelineLayout.js   an event's or an entry's weight; which events get a card at a zoom, and where
+src/shared/myTimeline.js       the reader's timeline: entries, layers, tags, checks, backup merge
+src/shared/richText.js         a description with links written [text](url), as { text, links }
 test/shared/fixtures/          real Wikipedia excerpts (CC BY-SA), revision cited
 scripts/build.js               esbuild: dist/chrome and dist/firefox; --watch for dev
 test/                          mirrors src/
@@ -116,6 +123,14 @@ range, precision, sentence with its links, nearest article link, section —
 and draws them in a banner above the text: a timeline zoomed with the wheel
 or the buttons, panned by dragging or with the keys, where the heaviest
 events get a card with the picture of their article (REST `page/summary`)
-and the others a dot on the axis. A card leads to its article. The reader's
-own timeline does not exist yet. The plan, phase by phase, is
+and the others a dot on the axis. A card leads to its article; a finger
+pans and pinches. The + of a card, or the button shown below a selection of
+the article (read leniently), opens a form that adds the event to the
+reader's own timeline, typed by hand when no date is read. That timeline is
+kept in `chrome.storage.local`: entries in layers (name, colour, shown or
+hidden), with tags, a description with links, and a picture (the article's
+thumbnail, a picture online, or a photo of the device). Its page, opened by
+the toolbar button or the banner, draws it coloured by layer, filters it by
+tag, lists it, and exports it to a file (photos included) that another
+device imports by merging. The plan, phase by phase, is
 `management/backlog/frise.md`.

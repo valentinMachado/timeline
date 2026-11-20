@@ -488,6 +488,63 @@ describe("sentences and links", () => {
   });
 });
 
+describe("lenient reading, for a text the reader points at", () => {
+  /**
+   * @param {string} text
+   * @param {string} language
+   * @returns {string[]} the mentions read leniently
+   */
+  const lenient = (text, language) =>
+    extractEvents(
+      { text, links: [], section: null },
+      { language, pageUrl: PAGE, now: NOW, lenient: true },
+    ).map((event) => text.slice(event.mention.start, event.mention.end));
+
+  const CASES = {
+    fr: {
+      bare: [
+        ["1789", "1789"],
+        ["Bastille 1789", "1789"],
+        ["800–900", "800–900"],
+        ["le 800", "800"],
+      ],
+      still: ["1500 soldats", "42", "page 12"],
+    },
+    en: {
+      bare: [
+        ["1789", "1789"],
+        ["Bastille 1789", "1789"],
+        ["800–900", "800–900"],
+        ["the 800", "800"],
+      ],
+      still: ["1500 soldiers", "42", "page 12"],
+    },
+  };
+
+  for (const [language, { bare, still }] of Object.entries(CASES)) {
+    it(`${language}: reads a bare year without a cue`, () => {
+      for (const [text, date] of bare) {
+        assert.ok(!mentions(text, language).includes(date), text);
+        assert.deepEqual(lenient(text, language), [date], text);
+      }
+    });
+
+    it(`${language}: still refuses a quantity or a short number`, () => {
+      for (const text of still) assert.deepEqual(lenient(text, language), []);
+    });
+  }
+
+  it("reads what the strict mode reads the same way", () => {
+    for (const { language, paragraphs } of EXCERPTS) {
+      for (const text of paragraphs) {
+        const strict = mentions(text, language);
+        const loose = lenient(text, language);
+        for (const mention of strict) assert.ok(loose.includes(mention));
+      }
+    }
+  });
+});
+
 describe("contract", () => {
   it("reads French and English", () => {
     assert.deepEqual([...LANGUAGES].sort(), ["en", "fr"]);

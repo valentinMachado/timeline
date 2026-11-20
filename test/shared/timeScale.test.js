@@ -12,6 +12,7 @@ import {
   PRECISION_YEARS,
   MIN_SPAN,
   clampView,
+  dragView,
   panView,
   ticksOf,
   xOf,
@@ -221,5 +222,49 @@ describe("graduations", () => {
         }
       }
     }
+  });
+});
+
+describe("dragView", () => {
+  const view = { start: 1000, end: 2000 };
+
+  it("pans with one finger, the date under it following it", () => {
+    const next = dragView(view, [0.5], [0.25]);
+    close(next.start, 1250);
+    close(next.end, 2250);
+  });
+
+  it("matches panView", () => {
+    const next = dragView(view, [0.6], [0.4]);
+    const pan = panView(view, 0.2);
+    close(next.start, pan.start);
+    close(next.end, pan.end);
+  });
+
+  it("zooms with two fingers, both dates staying under them", () => {
+    const next = dragView(view, [0.4, 0.6], [0.2, 0.8]);
+    const yearAt = (v, share) => v.start + share * (v.end - v.start);
+    close(yearAt(next, 0.2), 1400);
+    close(yearAt(next, 0.8), 1600);
+  });
+
+  it("pans and zooms at once", () => {
+    const next = dragView(view, [0.1, 0.3], [0.5, 0.9]);
+    const yearAt = (v, share) => v.start + share * (v.end - v.start);
+    close(yearAt(next, 0.5), 1100);
+    close(yearAt(next, 0.9), 1300);
+  });
+
+  it("stays inside the timeline and its spans", () => {
+    const tight = dragView(view, [0.49, 0.51], [0, 1]);
+    assert.ok(tight.end - tight.start >= MIN_SPAN);
+    const wide = dragView(
+      { start: MIN_YEAR, end: MAX_YEAR },
+      [0, 1],
+      [0.45, 0.55],
+    );
+    close(wide.end - wide.start, MAX_SPAN, 1);
+    const crossed = dragView(view, [0.4, 0.6], [0.5, 0.5]);
+    assert.ok(crossed.end > crossed.start);
   });
 });

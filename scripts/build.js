@@ -1,11 +1,11 @@
 /**
  * Builds the extension once per browser into `dist/<browser>/`, ready to be
  * loaded unpacked: the manifest from `src/manifest.js`, the scripts it names
- * bundled by esbuild, and `src/_locales/` copied as is.
+ * bundled by esbuild, its pages and `src/_locales/` copied as is.
  *
  * Usage: `node scripts/build.js` builds once; `--watch` rebuilds whenever a
- * bundled script changes, rewriting the manifest and the locales with it (a
- * change to `src/_locales/` alone waits for the next one). The extension is
+ * bundled script changes, rewriting the manifest, the pages and the locales
+ * with it (a change to those alone waits for the next one). The extension is
  * then reloaded by hand in the browser.
  */
 
@@ -13,7 +13,13 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
-import { TARGETS, manifestFor, scriptsOf, sourceOf } from "../src/manifest.js";
+import {
+  PAGES,
+  TARGETS,
+  manifestFor,
+  scriptsOf,
+  sourceOf,
+} from "../src/manifest.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -36,6 +42,10 @@ async function writeStatic(target, outdir, version) {
   await cp(path.join(ROOT, "src/_locales"), path.join(outdir, "_locales"), {
     recursive: true,
   });
+  for (const page of PAGES) {
+    await mkdir(path.dirname(path.join(outdir, page)), { recursive: true });
+    await cp(path.join(ROOT, sourceOf(page)), path.join(outdir, page));
+  }
 }
 
 /**
@@ -55,7 +65,8 @@ function optionsFor(target, outdir, version) {
     entryPoints,
     outdir,
     bundle: true,
-    // A content script is a classic script, not a module.
+    // A content script is a classic script, not a module; the other
+    // scripts are built alike, so one bundle format fits them all.
     format: "iife",
     target: ENGINES[target],
     logLevel: "info",

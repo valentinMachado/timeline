@@ -1,17 +1,25 @@
 /**
- * The timeline drawn in the banner: an axis of graduated time, a mark on it
- * for every event of the page, and a card with a picture for the events the
- * zoom has room for, each card a link to the article its event leads to.
+ * A timeline drawn into an element: an axis of graduated time, a mark on it
+ * for every event, and a card with a picture for the events the zoom has
+ * room for, each card a link to where its event leads. The banner of a
+ * Wikipedia article draws the page's events with it; the reader's timeline
+ * page draws the reader's entries, coloured by layer.
  *
- * The wheel zooms around the cursor, a drag or a horizontal scroll pans, the
- * keyboard does both once the timeline has the focus, and three buttons zoom
- * in, out, and back to the opening window. Which events earn a card, and
- * where, is decided by `timelineLayout.js`; this file only draws it.
+ * The wheel zooms around the cursor, a drag or a horizontal scroll pans, a
+ * finger pans and two fingers pinch, the keyboard does both once the
+ * timeline has the focus, and three buttons zoom in, out, and back to the
+ * opening window. Which events earn a card, and where, is decided by
+ * `timelineLayout.js`; this file only draws it.
  */
 
-import { panView, ticksOf, xOf, zoomView } from "../shared/timeScale.js";
+import {
+  dragView,
+  panView,
+  ticksOf,
+  xOf,
+  zoomView,
+} from "../shared/timeScale.js";
 import { initialView, placeCards } from "../shared/timelineLayout.js";
-import { thumbnailOf } from "./summaries.js";
 
 /** Card and row sizes, in pixels; the CSS below is written from them. */
 const CARD_WIDTH = 176;
@@ -36,6 +44,9 @@ const PAN_STEP = 0.15;
 
 export const TIMELINE_STYLE = `
   [hidden] { display: none !important; }
+  .timeline, .mark, .card {
+    --accent: var(--layer, var(--color-progressive, #36c));
+  }
   .timeline {
     position: relative;
     height: ${HEIGHT}px;
@@ -44,6 +55,7 @@ export const TIMELINE_STYLE = `
     cursor: grab;
     touch-action: pan-y;
     user-select: none;
+    -webkit-user-select: none;
     background: var(--background-color-base, #fff);
     border: 1px solid var(--border-color-subtle, #c8ccd1);
     border-radius: 2px;
@@ -78,14 +90,14 @@ export const TIMELINE_STYLE = `
     height: 5px;
     margin-left: -3px;
     border-radius: 50%;
-    background: var(--color-subtle, #54595d);
+    background: var(--layer, var(--color-subtle, #54595d));
     opacity: 0.5;
   }
   .mark.shown {
     height: 3px;
     margin-left: 0;
     border-radius: 0;
-    background: var(--color-progressive, #36c);
+    background: var(--accent);
     opacity: 0.8;
   }
   .card {
@@ -95,18 +107,13 @@ export const TIMELINE_STYLE = `
     box-sizing: border-box;
     width: ${CARD_WIDTH}px;
     height: ${CARD_HEIGHT}px;
-    display: flex;
-    gap: 6px;
-    padding: 4px;
-    color: inherit;
-    text-decoration: none;
     background: var(--background-color-neutral-subtle, #f8f9fa);
     border: 1px solid var(--border-color-subtle, #c8ccd1);
-    border-left: 2px solid var(--color-progressive, #36c);
+    border-left: 2px solid var(--accent);
     border-radius: 2px;
   }
-  .card:hover, .card:focus-visible {
-    border-color: var(--color-progressive, #36c);
+  .card:hover, .card:focus-within {
+    border-color: var(--accent);
     z-index: 1;
   }
   .card::before {
@@ -115,16 +122,30 @@ export const TIMELINE_STYLE = `
     left: -2px;
     top: 100%;
     height: var(--stem);
-    border-left: 1px solid var(--color-progressive, #36c);
+    border-left: 1px solid var(--accent);
   }
   .card.flipped {
     border-left: 1px solid var(--border-color-subtle, #c8ccd1);
-    border-right: 2px solid var(--color-progressive, #36c);
+    border-right: 2px solid var(--accent);
   }
   .card.flipped::before {
     left: auto;
     right: -2px;
   }
+  .link {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .card.acting .link { padding-right: 26px; }
   .thumb {
     flex: none;
     width: 46px;
@@ -169,33 +190,62 @@ export const TIMELINE_STYLE = `
     border-radius: 2px;
   }
   button:hover { background: var(--background-color-interactive, #eaecf0); }
+  .action {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.75;
+  }
+  .action:hover, .action:focus-visible { opacity: 1; }
+  /* A finger needs a bigger target than a cursor. */
+  @media (pointer: coarse) {
+    .controls button { min-width: 2.5em; min-height: 2.25em; }
+    .action { width: 30px; height: 30px; }
+    .card.acting .link { padding-right: 34px; }
+  }
 `;
 
 /**
  * @typedef {object} TimelineItem
  * @property {number} start where the event starts, in years
  * @property {number} end where it ends, its last period included
- * @property {number} weight from `weightOf`
- * @property {string} written the date as the page writes it
- * @property {string} title the article the event leads to
- * @property {string} href where its card leads
- * @property {string} description the sentence the event was read in
- * @property {string | null} summary where the picture of the article the
- *   event leads to is asked for, null when it leads back to the page
- * @property {string | null} image the picture of the event's section: shown
- *   when the event has no article of its own, or its article no picture
+ * @property {number} weight from `weightOf` or `weightOfEntry`
+ * @property {string} written the date as written
+ * @property {string} title the article or the entry the event is
+ * @property {string | null} href where its card leads, null for nowhere
+ * @property {string} description what a hovered card says
+ * @property {() => Promise<string | null>} picture asked for the card's
+ *   picture the first time the card is drawn, so that only the cards a
+ *   reader sees ask for theirs
+ * @property {string} [color] its layer's colour; the theme's accent if none
  */
 
 /**
- * The timeline of a page's events, drawn into an element it owns.
+ * @typedef {object} CardAction
+ * @property {string} text the button's face: a sign, `+`, `✎`
+ * @property {string} label what it does, for its tooltip and screen readers
+ * @property {(index: number) => void} run given the index of the card's item
+ */
+
+/**
+ * A timeline of events, drawn into an element it owns.
  */
 export class TimelineView {
   /**
-   * @param {TimelineItem[]} items the events, in the order of the page
+   * @param {TimelineItem[]} items the events
+   * @param {object} [options]
+   * @param {CardAction} [options.action] a button on every card
    */
-  constructor(items) {
-    /** The events: set once, by the page. */
+  constructor(items, { action } = {}) {
+    /** The events, set by the owner: once, or again by `setItems`. */
     this.items = items;
+    /** The button on every card, set by the owner. */
+    this.action = action ?? null;
     /** The window on time, set by the reader's zooms and pans. */
     this.view = initialView(items);
 
@@ -211,23 +261,49 @@ export class TimelineView {
     /** The graduations' layer, redrawn on every change. */
     this.axis = document.createElement("div");
     this.axis.className = "axis";
-    /** One mark per event, made once and moved. */
-    this.marks = items.map(() => {
-      const mark = document.createElement("div");
-      mark.className = "mark";
-      return mark;
-    });
+    /** One mark per event, made with the items and moved. */
+    this.marks = [];
     /** Each card made so far, by event index: made when first placed. */
     this.cards = new Map();
-    this.element.append(this.axis, ...this.marks);
+    this.element.append(this.axis);
+    this.makeMarks();
 
     /** The pending redraw, so that many changes in a frame draw once. */
     this.frame = 0;
-    /** The drag under way: where it started, and whether it moved. */
-    this.drag = null;
+    /** Where each pointer down on the timeline is now, by pointer id. */
+    this.pointers = new Map();
+    /** The gesture under way: the window and the pointers when it began. */
+    this.gesture = null;
 
     this.listen();
     new ResizeObserver(() => this.render()).observe(this.element);
+  }
+
+  /**
+   * Draws other events in the same window: a layer shown or hidden, an
+   * entry edited. The window opens on them only if there were none before.
+   *
+   * @param {TimelineItem[]} items
+   */
+  setItems(items) {
+    const wasEmpty = !this.items.length;
+    this.items = items;
+    for (const card of this.cards.values()) card.remove();
+    this.cards.clear();
+    for (const mark of this.marks) mark.remove();
+    this.makeMarks();
+    this.setView(wasEmpty ? initialView(items) : this.view);
+  }
+
+  /** One mark per item, coloured by its layer. */
+  makeMarks() {
+    this.marks = this.items.map((item) => {
+      const mark = document.createElement("div");
+      mark.className = "mark";
+      if (item.color) mark.style.setProperty("--layer", item.color);
+      return mark;
+    });
+    this.axis.before(...this.marks);
   }
 
   /**
@@ -263,7 +339,7 @@ export class TimelineView {
     this.setView(zoomView(this.view, factor, at));
   }
 
-  /** Back to the window the timeline opened on. */
+  /** Back to the window that holds the events. */
   fit() {
     this.setView(initialView(this.items));
   }
@@ -281,7 +357,7 @@ export class TimelineView {
     }
   }
 
-  /** Wheel, drag and keys. */
+  /** Wheel, mouse and fingers, and keys. */
   listen() {
     const element = this.element;
     element.addEventListener(
@@ -304,32 +380,60 @@ export class TimelineView {
       { passive: false },
     );
 
+    // One finger or the mouse pans; two fingers pinch. Every pointer that
+    // comes or goes starts the gesture again from where they all are.
+    const restart = () => {
+      const ids = [...this.pointers.keys()].slice(0, 2);
+      this.gesture = ids.length
+        ? {
+            view: this.view,
+            ids,
+            from: ids.map((id) => this.pointers.get(id)),
+            moved: this.gesture?.moved ?? false,
+          }
+        : null;
+    };
     element.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) return;
-      this.drag = { x: event.clientX, view: this.view, moved: false };
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      this.pointers.set(event.pointerId, event.clientX);
+      restart();
     });
     window.addEventListener("pointermove", (event) => {
-      if (!this.drag) return;
-      const dx = event.clientX - this.drag.x;
-      if (Math.abs(dx) > CLICK_SLOP) this.drag.moved = true;
-      if (!this.drag.moved) return;
+      if (!this.pointers.has(event.pointerId)) return;
+      this.pointers.set(event.pointerId, event.clientX);
+      const gesture = this.gesture;
+      const to = gesture.ids.map((id) => this.pointers.get(id));
+      if (to.some((x, i) => Math.abs(x - gesture.from[i]) > CLICK_SLOP)) {
+        gesture.moved = true;
+      }
+      if (!gesture.moved) return;
       element.classList.add("dragging");
+      const left = element.getBoundingClientRect().left;
       const width = element.clientWidth || 1;
-      this.setView(panView(this.drag.view, -dx / width));
+      const share = (x) => (x - left) / width;
+      this.setView(
+        dragView(gesture.view, gesture.from.map(share), to.map(share)),
+      );
     });
-    window.addEventListener("pointerup", () => {
+    const release = (event) => {
+      if (!this.pointers.delete(event.pointerId)) return;
+      const moved = this.gesture?.moved;
+      restart();
+      if (this.pointers.size) return;
       element.classList.remove("dragging");
       // The click that ends a drag must not follow a card's link.
-      if (this.drag?.moved) {
+      if (moved && event.type === "pointerup") {
         element.addEventListener("click", (e) => e.preventDefault(), {
           capture: true,
           once: true,
         });
       }
-      this.drag = null;
-    });
+    };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
 
     element.addEventListener("keydown", (event) => {
+      if (event.target !== element) return;
       const action = {
         ArrowLeft: () => this.setView(panView(this.view, -PAN_STEP)),
         ArrowRight: () => this.setView(panView(this.view, PAN_STEP)),
@@ -408,16 +512,21 @@ export class TimelineView {
    * asked for then, so a page asks only for the cards a reader sees.
    *
    * @param {number} index
-   * @returns {HTMLAnchorElement}
+   * @returns {HTMLElement}
    */
   cardOf(index) {
     if (this.cards.has(index)) return this.cards.get(index);
     const item = this.items[index];
-    const card = document.createElement("a");
+    const card = document.createElement("div");
     card.className = "card";
-    card.href = item.href;
-    card.title = item.description;
-    card.draggable = false;
+    if (item.color) card.style.setProperty("--layer", item.color);
+
+    // A card that leads nowhere is read the same way, without a link.
+    const link = document.createElement(item.href ? "a" : "div");
+    link.className = "link";
+    if (item.href) link.href = item.href;
+    link.title = item.description;
+    link.draggable = false;
 
     const thumb = document.createElement("img");
     thumb.className = "thumb";
@@ -431,14 +540,9 @@ export class TimelineView {
       thumb.hidden = false;
       placeholder.remove();
     });
-    const show = (source) => {
+    item.picture().then((source) => {
       if (source) thumb.src = source;
-    };
-    if (item.summary) {
-      thumbnailOf(item.summary).then((source) => show(source ?? item.image));
-    } else {
-      show(item.image);
-    }
+    });
 
     const text = document.createElement("span");
     text.className = "text";
@@ -450,7 +554,21 @@ export class TimelineView {
     title.textContent = item.title;
     text.append(date, title);
 
-    card.append(placeholder, thumb, text);
+    link.append(placeholder, thumb, text);
+    card.append(link);
+
+    if (this.action) {
+      const { text: face, label, run } = this.action;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "action";
+      button.textContent = face;
+      button.title = label;
+      button.setAttribute("aria-label", `${label} — ${item.title}`);
+      button.addEventListener("click", () => run(index));
+      card.classList.add("acting");
+      card.append(button);
+    }
 
     this.cards.set(index, card);
     this.element.append(card);

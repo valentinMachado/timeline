@@ -16,24 +16,51 @@ import {
   yearsOf,
   xOf,
 } from "./timeScale.js";
+import { eventOfEntry } from "./myTimeline.js";
 
 /**
- * What raises or lowers an event's weight, with how much. A table rather than
+ * What raises or lowers an event's weight, with how much. Tables rather than
  * scattered conditions, so the reasons sit side by side.
  *
- * - The lead sums the article up: its dates are the article's own.
- * - An event with a link of its own leads somewhere new, with a picture.
- * - A range is a period the article is about, more than a passing date.
+ * What its date says, for an event of a page and an entry of the reader's
+ * own timeline alike:
+ * - A range is a period the story is about, more than a passing date.
  * - A century or coarser is the backdrop of the story, not an event of it.
  * - An approximate date is a weaker claim.
  */
-const WEIGHTS = [
-  { points: 4, applies: (event) => event.section === null },
-  { points: 2, applies: (event, pageUrl) => hasOwnLink(event, pageUrl) },
+const DATE_WEIGHTS = [
   { points: 1, applies: (event) => event.end !== null },
   { points: -1, applies: (event) => isCoarse(event.start.precision) },
   { points: -1, applies: (event) => event.approximate },
 ];
+
+/**
+ * What only an event of a page has:
+ * - The lead sums the article up: its dates are the article's own.
+ * - An event with a link of its own leads somewhere new, with a picture.
+ */
+const PAGE_WEIGHTS = [
+  { points: 4, applies: (event) => event.section === null },
+  { points: 2, applies: (event, pageUrl) => hasOwnLink(event, pageUrl) },
+];
+
+/**
+ * What only an entry of the reader's timeline has: a picture shows, and is
+ * what the reader made the timeline for.
+ */
+const ENTRY_WEIGHTS = [{ points: 2, applies: (entry) => entry.image !== null }];
+
+/**
+ * @param {{ points: number, applies: Function }[]} rules
+ * @param {...unknown} args what each rule is given
+ * @returns {number} the points of the rules that apply
+ */
+function scoreOf(rules, ...args) {
+  return rules.reduce(
+    (sum, { points, applies }) => (applies(...args) ? sum + points : sum),
+    0,
+  );
+}
 
 /** Precisions that set a backdrop rather than date an event. */
 const COARSE = new Set(["century", "millennium", "kyr", "Myr", "Gyr"]);
@@ -67,16 +94,25 @@ export function hasOwnLink(event, pageUrl) {
  * @returns {number} a small integer, comparable between events of a page
  */
 export function weightOf(event, pageUrl) {
-  return WEIGHTS.reduce(
-    (sum, { points, applies }) =>
-      applies(event, pageUrl) ? sum + points : sum,
-    0,
+  return scoreOf(DATE_WEIGHTS, event) + scoreOf(PAGE_WEIGHTS, event, pageUrl);
+}
+
+/**
+ * How much an entry of the reader's timeline weighs against the others.
+ *
+ * @param {import("./myTimeline.js").Entry} entry
+ * @returns {number} a small integer, comparable between entries
+ */
+export function weightOfEntry(entry) {
+  return (
+    scoreOf(DATE_WEIGHTS, eventOfEntry(entry)) + scoreOf(ENTRY_WEIGHTS, entry)
   );
 }
 
 /**
- * @param {import("./dateExtraction.js").TimelineEvent} event
- * @returns {{ start: number, end: number }} the years the event covers,
+ * @param {{ start: import("./dateExtraction.js").Point,
+ *   end: import("./dateExtraction.js").Point | null }} event an event of a
+ *   page, or an entry through `eventOfEntry` the years the event covers,
  *   its last period included: `1789–1799` ends where 1800 starts
  */
 export function spanOf(event) {
@@ -91,19 +127,23 @@ export function spanOf(event) {
 const OUTLIERS = 0.1;
 
 /**
- * The window a timeline opens on: around most of the page's events, so that
- * one remote date (a geological era in a history article, a founding
- * centuries back) does not squeeze the others into a line.
+ * The window a timeline opens on: around most of the events, from where
+ * they start to where they end, so that one remote date (a geological era
+ * in a history article, a founding centuries back) does not squeeze the
+ * others into a line, and a lone period is seen whole.
  *
- * @param {{ start: number }[]} spans the events' spans
+ * @param {{ start: number, end?: number }[]} spans the events' spans; one
+ *   without an end ends where it starts
  * @returns {import("./timeScale.js").View}
  */
 export function initialView(spans) {
   if (!spans.length) return clampView({ start: 1900, end: 2100 });
-  const starts = spans.map(({ start }) => start).sort((a, b) => a - b);
-  const cut = spans.length >= 10 ? Math.floor(starts.length * OUTLIERS) : 0;
+  const sorted = (values) => values.sort((a, b) => a - b);
+  const starts = sorted(spans.map(({ start }) => start));
+  const ends = sorted(spans.map(({ start, end }) => end ?? start));
+  const cut = spans.length >= 10 ? Math.floor(spans.length * OUTLIERS) : 0;
   const first = starts[cut];
-  const last = starts[starts.length - 1 - cut];
+  const last = ends[ends.length - 1 - cut];
   const margin = Math.max((last - first) * 0.1, MIN_SPAN);
   return clampView({ start: first - margin, end: last + margin });
 }
