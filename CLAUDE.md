@@ -91,10 +91,13 @@ Git
 
 ```
 src/manifest.js                the manifest, one source specialised per browser (Chrome, Firefox)
-src/content/wikipedia.js       content script: the banner above a Wikipedia article (shadow DOM)
+src/content/wikipedia.js       content script: article → text blocks → events; the banner (shadow DOM)
 src/_locales/{en,fr}/          every user-visible string
 src/shared/TimelineDate.js     a day from the Big Bang to a billion years ahead, beyond Date's range
-src/shared/wikipediaPage.js    what a Wikipedia page is, from its body classes
+src/shared/dateExtraction.js   a block of text and its links → timeline events (dates, precision, link)
+src/shared/dateGrammars.js     how each language writes a date, as tables (fr, en)
+src/shared/wikipediaPage.js    what a Wikipedia page is: article view, language, article links
+test/shared/fixtures/          real Wikipedia excerpts (CC BY-SA), revision cited
 scripts/build.js               esbuild: dist/chrome and dist/firefox; --watch for dev
 test/                          mirrors src/
 management/                    backlog and plan, French, gitignored
@@ -103,7 +106,9 @@ management/                    backlog and plan, French, gitignored
 ## Current state
 
 **Where it stands.** A Manifest V3 extension built by esbuild for Chrome and
-Firefox. On a Wikipedia article it injects an empty banner above the text,
-where the timeline will be drawn; no date is read from the page yet.
-`TimelineDate` holds the date arithmetic. The plan, phase by phase, is
-`management/backlog/frise.md`.
+Firefox. On a French or English Wikipedia article it reads the dates of the
+text (paragraphs and lists; not infoboxes nor tables) into events — date or
+range, precision, sentence with its links, nearest article link — and
+injects a banner above the text that says how many it read; the timeline is
+not drawn yet. `TimelineDate` holds the date arithmetic. The plan, phase by
+phase, is `management/backlog/frise.md`.

@@ -12,7 +12,17 @@
     "description": "Heading of the banner injected above a Wikipedia article."
   },
   "bannerEmpty": {
-    "message": "No dates read from this page yet.",
-    "description": "Shown in the banner while it holds no event."
+    "message": "No date found on this page.",
+    "description": "Shown in the banner when no date was read from the page."
+  },
+  "bannerCount": {
+    "message": "Dates read from this page: $COUNT$",
+    "description": "Shown in the banner: how many dates were read from the page.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
   }
 }

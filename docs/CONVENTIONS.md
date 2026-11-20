@@ -119,6 +119,15 @@ inside that range `Date` is the tests' oracle. Months are 0-based like
 `Date`'s. An invalid date throws a `RangeError` rather than being logged: a
 date found on a page that does not exist must be refused where it is read.
 
+**Reading dates from text** (`dateExtraction.js`) is one algorithm for every
+language; what a language writes — months, eras, cue words, units, range
+connectors — is an entry of `GRAMMARS` in `dateGrammars.js`. A new language
+or a new spelling is a row in that table, never a branch in the algorithm.
+The extraction prefers missing a date to inventing one: a bare number is a
+year only with a cue, because a false event on a timeline is worse than a
+missing one, which the reader can add. Every rule is tested on real excerpts
+of Wikipedia, both languages alike.
+
 ---
 
 ## 6. Tests
