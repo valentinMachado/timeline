@@ -433,6 +433,19 @@ describe("sentences and links", () => {
     assert.equal(events(block(text, []))[0].link, PAGE);
   });
 
+  it("keeps the date as written, and the section it was read in", () => {
+    const zwj = String.fromCharCode(0x200d);
+    const b = block(
+      `La République dure de 509${zwj}–${zwj}27 av. J.-C.`,
+      [],
+      "Rome",
+    );
+    const [republic] = events(b);
+    assert.equal(republic.written, "509–27 av. J.-C.");
+    assert.equal(republic.section, "Rome");
+    assert.equal(events(block("Fondée en 753 av. J.-C.", []))[0].section, null);
+  });
+
   it("keeps the sentence, with its links, as the description", () => {
     const b = block(
       "Rome est fondée en 753 av. J.-C. Elle devient une République en 509 av. J.-C. selon la tradition.",

@@ -5,8 +5,10 @@ you are on — Wikipedia first — and draws them as an illustrated timeline: ea
 event with the picture of its article, leading back to it. You can also keep a
 timeline of your own, in layers, filled from what you read.
 
-Work in progress: on a Wikipedia article the extension shows an empty banner,
-where the timeline will be drawn.
+Work in progress: on a French or English Wikipedia article, a banner above the
+text draws the article's dates as a timeline you zoom with the wheel and pan
+by dragging; each card shows the picture of the article it leads to. Your own
+timeline is not there yet.
 
 ```bash
 npm install

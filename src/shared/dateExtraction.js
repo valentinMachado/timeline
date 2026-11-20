@@ -77,6 +77,10 @@ export const LANGUAGES = Object.freeze(Object.keys(GRAMMARS));
  * @property {boolean} approximate `vers 1500`, `c. 1500`, `around 66 Ma`
  * @property {{ start: number, end: number }} mention where the date is
  *   written, offsets into the block's text
+ * @property {string} written the date as the text writes it, invisible
+ *   joiners left out: the label a timeline shows
+ * @property {string | null} section the anchor of the section the event was
+ *   read in, null in the lead
  * @property {{ text: string, links: Link[] }} sentence the sentence the date
  *   is in, its links' offsets into that sentence: the event's description
  * @property {string} link the URL the event leads to: the link of its
@@ -128,6 +132,8 @@ export function extractEvents(block, { language, pageUrl, now }) {
       end,
       approximate,
       mention,
+      written: text.slice(mention.start, mention.end).replace(INVISIBLE, ""),
+      section: block.section,
       sentence: sentenceOf(block, sentence),
       link: linkOf(block, sentence, mention, dateSpans, pageUrl),
     };
@@ -385,6 +391,9 @@ function readSingle(text, mention, grammar, now) {
     mention: { start, end },
   };
 }
+
+/** The zero-width joiners Wikipedia puts around the dash of a range. */
+const INVISIBLE = /[\u200b-\u200d\u2060]/gu;
 
 /** A dash between two dates, the invisible joiners Wikipedia puts around it included. */
 const DASH = /^[\s\u200b-\u200d\u2060]*[-‐‑–—][\s\u200b-\u200d\u2060]*$/u;

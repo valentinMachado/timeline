@@ -5,6 +5,7 @@ import {
   isArticleView,
   isBackMatter,
   pageLanguage,
+  summaryUrl,
 } from "../../src/shared/wikipediaPage.js";
 
 test("an article being read is an article view", () => {
@@ -75,4 +76,26 @@ test("source sections are back matter, story sections are not", () => {
   assert.equal(isBackMatter("Notes_et_références"), true);
   assert.equal(isBackMatter("External_links"), true);
   assert.equal(isBackMatter("Histoire"), false);
+});
+
+test("an article's summary is asked of its Wikipedia's REST API", () => {
+  assert.equal(
+    summaryUrl("https://fr.wikipedia.org/wiki/R%C3%A9volution_fran%C3%A7aise"),
+    "https://fr.wikipedia.org/api/rest_v1/page/summary/R%C3%A9volution_fran%C3%A7aise",
+  );
+  // The mobile site's articles are asked on the desktop host; a slash or a
+  // colon in a title stays part of it.
+  assert.equal(
+    summaryUrl("https://en.m.wikipedia.org/wiki/AC/DC#History"),
+    "https://en.wikipedia.org/api/rest_v1/page/summary/AC%2FDC",
+  );
+  assert.equal(
+    summaryUrl("https://en.wikipedia.org/wiki/Star_Wars:_A_New_Hope"),
+    "https://en.wikipedia.org/api/rest_v1/page/summary/Star_Wars%3A_A_New_Hope",
+  );
+});
+
+test("a link elsewhere has no summary", () => {
+  assert.equal(summaryUrl("https://fr.wikipedia.org/wiki/Fichier:X.jpg"), null);
+  assert.equal(summaryUrl("https://www.example.org/wiki/Paris"), null);
 });

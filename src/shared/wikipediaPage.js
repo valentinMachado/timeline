@@ -120,3 +120,21 @@ const BACK_MATTER = new Set([
 export function isBackMatter(anchor) {
   return BACK_MATTER.has(anchor);
 }
+
+/**
+ * Where the REST API sums up the article a link leads to: its title, a short
+ * description, its lead picture. The API is asked on the desktop host of
+ * the article's Wikipedia, which is the page's own origin for most links and
+ * answers other origins too.
+ *
+ * @param {string} href an absolute URL
+ * @returns {string | null} the summary's URL, null when the link does not
+ *   lead to an article
+ */
+export function summaryUrl(href) {
+  const title = articleTitle(href);
+  if (title === null) return null;
+  const language = /^https:\/\/([a-z-]+)\./.exec(href)[1];
+  const path = encodeURIComponent(title.replace(/ /g, "_"));
+  return `https://${language}.wikipedia.org/api/rest_v1/page/summary/${path}`;
+}

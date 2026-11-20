@@ -92,11 +92,15 @@ Git
 ```
 src/manifest.js                the manifest, one source specialised per browser (Chrome, Firefox)
 src/content/wikipedia.js       content script: article → text blocks → events; the banner (shadow DOM)
+src/content/timelineView.js    the timeline drawn in the banner: axis, marks, cards; wheel, drag, keys
+src/content/summaries.js       article thumbnails from the REST API, only for cards on screen
 src/_locales/{en,fr}/          every user-visible string
 src/shared/TimelineDate.js     a day from the Big Bang to a billion years ahead, beyond Date's range
 src/shared/dateExtraction.js   a block of text and its links → timeline events (dates, precision, link)
 src/shared/dateGrammars.js     how each language writes a date, as tables (fr, en)
 src/shared/wikipediaPage.js    what a Wikipedia page is: article view, language, article links
+src/shared/timeScale.js        a date as years; the window's zoom and pan; the graduations
+src/shared/timelineLayout.js   an event's weight; which events get a card at a zoom, and where
 test/shared/fixtures/          real Wikipedia excerpts (CC BY-SA), revision cited
 scripts/build.js               esbuild: dist/chrome and dist/firefox; --watch for dev
 test/                          mirrors src/
@@ -108,7 +112,10 @@ management/                    backlog and plan, French, gitignored
 **Where it stands.** A Manifest V3 extension built by esbuild for Chrome and
 Firefox. On a French or English Wikipedia article it reads the dates of the
 text (paragraphs and lists; not infoboxes nor tables) into events — date or
-range, precision, sentence with its links, nearest article link — and
-injects a banner above the text that says how many it read; the timeline is
-not drawn yet. `TimelineDate` holds the date arithmetic. The plan, phase by
-phase, is `management/backlog/frise.md`.
+range, precision, sentence with its links, nearest article link, section —
+and draws them in a banner above the text: a timeline zoomed with the wheel
+or the buttons, panned by dragging or with the keys, where the heaviest
+events get a card with the picture of their article (REST `page/summary`)
+and the others a dot on the axis. A card leads to its article. The reader's
+own timeline does not exist yet. The plan, phase by phase, is
+`management/backlog/frise.md`.

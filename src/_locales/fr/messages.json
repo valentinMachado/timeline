@@ -24,5 +24,65 @@
         "example": "42"
       }
     }
+  },
+  "timelineLabel": {
+    "message": "Frise : la molette zoome, un glisser déplace ; flèches, + et - une fois sélectionnée.",
+    "description": "Accessible name of the timeline, which says how to move it."
+  },
+  "zoomIn": {
+    "message": "Zoomer",
+    "description": "Button that zooms the timeline in."
+  },
+  "zoomOut": {
+    "message": "Dézoomer",
+    "description": "Button that zooms the timeline out."
+  },
+  "zoomFit": {
+    "message": "Revenir à toute la page",
+    "description": "Button that brings the timeline back to the window it opened on."
+  },
+  "yearBc": {
+    "message": "$YEAR$ av. J.-C.",
+    "description": "A year before the common era, on the timeline's axis.",
+    "placeholders": {
+      "year": {
+        "content": "$1",
+        "example": "500"
+      }
+    }
+  },
+  "tickMonth": {
+    "message": "$MONTH$ $YEAR$",
+    "description": "A month on the timeline's axis: its short name, then its year.",
+    "placeholders": {
+      "month": {
+        "content": "$1",
+        "example": "May"
+      },
+      "year": {
+        "content": "$2",
+        "example": "1789"
+      }
+    }
+  },
+  "tickMyr": {
+    "message": "$COUNT$ Ma",
+    "description": "Millions of years ago, on the timeline's axis.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "66"
+      }
+    }
+  },
+  "tickGyr": {
+    "message": "$COUNT$ Ga",
+    "description": "Billions of years ago, on the timeline's axis.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "4.5"
+      }
+    }
   }
 }

@@ -128,6 +128,15 @@ year only with a cue, because a false event on a timeline is worse than a
 missing one, which the reader can add. Every rule is tested on real excerpts
 of Wikipedia, both languages alike.
 
+**Drawing a timeline** is decided in `src/shared/` and only carried out in
+`src/content/`: where a date falls and how the window zooms
+(`timeScale.js`), which events get a card at a zoom and where
+(`timelineLayout.js`). An event's weight — what earns it a card when room
+is short — is a function of its fields (`WEIGHTS`, a table), never a stored
+field, so that a change of the rule reaches every event at once. Pictures
+come from Wikipedia's REST API, asked only for the cards on screen, a few at
+a time and once per page: the API is shared and asks for restraint.
+
 ---
 
 ## 6. Tests

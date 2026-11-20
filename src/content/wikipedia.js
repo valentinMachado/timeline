@@ -1,7 +1,7 @@
 /**
  * Content script for Wikipedia articles: reads the dates of the article and
- * injects the banner the timeline will be drawn in, above the article's text.
- * For now the banner says how many dates it read.
+ * injects, above the article's text, a banner that draws them as a timeline
+ * (`timelineView.js`).
  *
  * The banner lives in a shadow root so that Wikipedia's styles do not reach
  * it and its own do not leak into the page. Its colours are Wikipedia's own
@@ -10,12 +10,15 @@
  */
 
 import { LANGUAGES, extractEvents } from "../shared/dateExtraction.js";
+import { hasOwnLink, spanOf, weightOf } from "../shared/timelineLayout.js";
 import {
   articleTitle,
   isArticleView,
   isBackMatter,
   pageLanguage,
+  summaryUrl,
 } from "../shared/wikipediaPage.js";
+import { TIMELINE_STYLE, TimelineView } from "./timelineView.js";
 
 /** The id of the banner's host element, to never inject it twice. */
 const HOST_ID = "timeline-extension-banner";
@@ -53,6 +56,18 @@ const SKIPPED_INLINE = [
   ".noprint",
 ].join(", ");
 
+/** Where an article's own pictures are: its figures and its infobox. */
+const PICTURES = [
+  "figure",
+  ".thumb",
+  ".infobox",
+  ".infobox_v2",
+  ".infobox_v3",
+].join(", ");
+
+/** Narrower pictures are icons and flags, not illustrations. */
+const PICTURE_MIN_WIDTH = 80;
+
 const STYLE = `
   :host {
     all: initial;
@@ -69,16 +84,22 @@ const STYLE = `
     padding: 0.75em 1em;
     min-height: 4em;
   }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 1em;
+  }
   h2 {
     all: unset;
     display: block;
     font-weight: bold;
-    margin-bottom: 0.25em;
   }
   p {
+    flex: 1;
     margin: 0;
     color: var(--color-subtle, #54595d);
   }
+  ${TIMELINE_STYLE}
 `;
 
 /**
@@ -121,21 +142,44 @@ function anchorOf(heading) {
 }
 
 /**
+ * @typedef {object} Section
+ * @property {string} title its heading; the article's title for the lead
+ * @property {string | null} image the URL of its first picture
+ */
+
+/**
  * Every paragraph and list item of the article's story, in order, each with
- * the section it is in. Back-matter sections (notes, bibliography) are
- * left out up to the next top-level section.
+ * the section it is in; and each section's title and first picture.
+ * Back-matter sections (notes, bibliography) are left out up to the next
+ * top-level section.
  *
  * @param {Element} content the article's text, `.mw-parser-output`
- * @returns {import("../shared/dateExtraction.js").Block[]}
+ * @param {string} title the article's title, which names the lead
+ * @returns {{
+ *   blocks: import("../shared/dateExtraction.js").Block[],
+ *   sections: Map<string | null, Section>,
+ * }} the sections by anchor, the lead's null
  */
-function readBlocks(content) {
+function readArticle(content, title) {
   const blocks = [];
+  const sections = new Map([[null, { title, image: null }]]);
   let section = null;
   let backMatter = false;
-  for (const element of content.querySelectorAll("h2, h3, h4, h5, h6, p, li")) {
+  const query = "h2, h3, h4, h5, h6, p, li, img";
+  for (const element of content.querySelectorAll(query)) {
+    if (element instanceof HTMLImageElement) {
+      const current = sections.get(section);
+      const wide = Number(element.getAttribute("width")) >= PICTURE_MIN_WIDTH;
+      if (!current.image && wide && element.closest(PICTURES)) {
+        current.image = element.currentSrc || element.src;
+      }
+      continue;
+    }
     if (element.closest(SKIPPED_BLOCKS)) continue;
     if (/^H\d$/.test(element.tagName)) {
       section = anchorOf(element);
+      const heading = element.querySelector(".mw-headline") ?? element;
+      sections.set(section, { title: heading.textContent.trim(), image: null });
       if (element.tagName === "H2") backMatter = isBackMatter(section ?? "");
       continue;
     }
@@ -143,16 +187,44 @@ function readBlocks(content) {
     const block = readBlock(element);
     if (block.text.trim()) blocks.push({ ...block, section });
   }
-  return blocks;
+  return { blocks, sections };
 }
 
 /**
- * Builds the banner's host element, its shadow root filled.
+ * What the timeline draws of each event: where it falls, how much it
+ * weighs, what its card says, shows and leads to.
  *
- * @param {number} eventCount how many dates were read from the page
+ * @param {import("../shared/dateExtraction.js").TimelineEvent[]} events
+ * @param {Map<string | null, Section>} sections
+ * @param {string} pageUrl the page, without a fragment
+ * @returns {import("./timelineView.js").TimelineItem[]}
+ */
+function itemsOf(events, sections, pageUrl) {
+  const lead = sections.get(null);
+  return events.map((event) => {
+    const section = sections.get(event.section) ?? lead;
+    const own = hasOwnLink(event, pageUrl);
+    return {
+      ...spanOf(event),
+      weight: weightOf(event, pageUrl),
+      written: event.written,
+      title: own ? articleTitle(event.link) : section.title,
+      href: event.link,
+      description: event.sentence.text,
+      summary: own ? summaryUrl(event.link) : null,
+      image: section.image ?? lead.image,
+    };
+  });
+}
+
+/**
+ * Builds the banner's host element, its shadow root filled: a heading, how
+ * many dates were read and, when there are any, the timeline.
+ *
+ * @param {import("./timelineView.js").TimelineItem[]} items
  * @returns {HTMLElement}
  */
-function createBanner(eventCount) {
+function createBanner(items) {
   const host = document.createElement("div");
   host.id = HOST_ID;
   const root = host.attachShadow({ mode: "closed" });
@@ -162,13 +234,20 @@ function createBanner(eventCount) {
 
   const section = document.createElement("section");
   section.setAttribute("aria-label", chrome.i18n.getMessage("bannerTitle"));
+  const header = document.createElement("header");
   const title = document.createElement("h2");
   title.textContent = chrome.i18n.getMessage("bannerTitle");
   const summary = document.createElement("p");
-  summary.textContent = eventCount
-    ? chrome.i18n.getMessage("bannerCount", [String(eventCount)])
+  summary.textContent = items.length
+    ? chrome.i18n.getMessage("bannerCount", [String(items.length)])
     : chrome.i18n.getMessage("bannerEmpty");
-  section.append(title, summary);
+  header.append(title, summary);
+  section.append(header);
+  if (items.length) {
+    const timeline = new TimelineView(items);
+    header.append(timeline.controls());
+    section.append(timeline.element);
+  }
 
   root.append(style, section);
   return host;
@@ -187,16 +266,15 @@ function injectBanner() {
   const content = document.getElementById("mw-content-text");
   if (!content) return;
 
-  const options = {
-    language,
-    pageUrl: location.origin + location.pathname,
-    now: new Date().getFullYear(),
-  };
+  const pageUrl = location.origin + location.pathname;
+  const options = { language, pageUrl, now: new Date().getFullYear() };
   const story = content.querySelector(".mw-parser-output") ?? content;
-  const events = readBlocks(story).flatMap((block) =>
-    extractEvents(block, options),
+  const { blocks, sections } = readArticle(
+    story,
+    articleTitle(pageUrl) ?? document.title,
   );
-  content.before(createBanner(events.length));
+  const events = blocks.flatMap((block) => extractEvents(block, options));
+  content.before(createBanner(itemsOf(events, sections, pageUrl)));
 }
 
 injectBanner();
