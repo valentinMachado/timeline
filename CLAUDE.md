@@ -124,7 +124,9 @@ and draws them in a banner above the text: a timeline zoomed with the wheel
 or the buttons, panned by dragging or with the keys, where the heaviest
 events get a card with the picture of their article (REST `page/summary`)
 and the others a dot on the axis. A card scrolls the article to its date,
-highlighted, and its ↗ opens the article it is about; a finger pans and
+highlighted, and its ↗ opens the article it is about; every date read is
+faintly highlighted in the text, and clicking one brings the banner back
+centred on its event, its card drawn and set apart. A finger pans and
 pinches. The + of a card, or the button shown below a selection of
 the article (read leniently), opens a form that adds the event to the
 reader's own timeline, typed by hand when no date is read. That timeline is

@@ -15,6 +15,7 @@
  */
 
 import {
+  centerView,
   dragView,
   panView,
   ticksOf,
@@ -125,6 +126,11 @@ export const TIMELINE_STYLE = `
     top: 100%;
     height: var(--stem);
     border-left: 1px solid var(--accent);
+  }
+  .card.picked {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+    z-index: 2;
   }
   .card.flipped {
     border-left: 1px solid var(--border-color-subtle, #c8ccd1);
@@ -281,6 +287,8 @@ export class TimelineView {
     this.open = open ?? null;
     /** The window on time, set by the reader's zooms and pans. */
     this.view = initialView(items);
+    /** The index of the event the reader picked elsewhere, set by `reveal`. */
+    this.picked = null;
 
     /** The element drawn into, to measure and to listen on. */
     this.element = document.createElement("div");
@@ -321,6 +329,7 @@ export class TimelineView {
   setItems(items) {
     const wasEmpty = !this.items.length;
     this.items = items;
+    this.picked = null;
     for (const card of this.cards.values()) card.remove();
     this.cards.clear();
     for (const mark of this.marks) mark.remove();
@@ -370,6 +379,17 @@ export class TimelineView {
    */
   zoom(factor, at) {
     this.setView(zoomView(this.view, factor, at));
+  }
+
+  /**
+   * Shows an event the reader picked outside the timeline: the window
+   * centred on it, its card drawn whatever it weighs, and set apart.
+   *
+   * @param {number} index
+   */
+  reveal(index) {
+    this.picked = index;
+    this.setView(centerView(this.view, this.items[index].start));
   }
 
   /** Back to the window that holds the events. */
@@ -505,6 +525,7 @@ export class TimelineView {
       cardWidth: CARD_WIDTH,
       gap: CARD_GAP,
       lanes: LANES,
+      picked: this.picked,
     });
     const shown = new Map(placed.map(({ index, lane }) => [index, lane]));
 
@@ -537,6 +558,7 @@ export class TimelineView {
       const top = (LANES - 1 - lane) * LANE_HEIGHT + 6;
       card.hidden = false;
       card.classList.toggle("flipped", left !== x);
+      card.classList.toggle("picked", index === this.picked);
       card.style.transform = `translate(${left}px, ${top}px)`;
       card.style.setProperty(
         "--stem",

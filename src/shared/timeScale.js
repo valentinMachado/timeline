@@ -95,6 +95,18 @@ export function panView(view, share) {
 }
 
 /**
+ * Pans so that a date is in the middle of the window, its span kept.
+ *
+ * @param {View} view
+ * @param {number} value in years
+ * @returns {View}
+ */
+export function centerView(view, value) {
+  const half = (view.end - view.start) / 2;
+  return clampView({ start: value - half, end: value + half });
+}
+
+/**
  * The window that keeps the dates under one or two fingers under them as
  * they move: one finger pans, two pan and zoom at once (a pinch).
  *

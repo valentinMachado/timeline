@@ -145,6 +145,27 @@ describe("cards", () => {
     assert.equal(placed.find(({ index }) => index === 2).lane, 0);
   });
 
+  it("give the picked event a card before any heavier one", () => {
+    const items = [100, 110, 120].map((start, i) => ({ start, weight: i }));
+    const placed = placeCards(items, view, { ...size, lanes: 1, picked: 0 });
+    assert.deepEqual(
+      placed.map(({ index }) => index),
+      [0],
+    );
+  });
+
+  it("give no card to a picked event out of the window", () => {
+    const items = [
+      { start: 5000, weight: 0 },
+      { start: 100, weight: 0 },
+    ];
+    const placed = placeCards(items, view, { ...size, picked: 0 });
+    assert.deepEqual(
+      placed.map(({ index }) => index),
+      [1],
+    );
+  });
+
   it("break a tie in the order of the page", () => {
     const items = [100, 110, 120].map((start) => ({ start, weight: 1 }));
     const placed = placeCards(items, view, { ...size, lanes: 1 });

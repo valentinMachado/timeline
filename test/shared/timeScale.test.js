@@ -11,6 +11,7 @@ import {
   MAX_SPAN,
   PRECISION_YEARS,
   MIN_SPAN,
+  centerView,
   clampView,
   dragView,
   panView,
@@ -266,5 +267,20 @@ describe("dragView", () => {
     close(wide.end - wide.start, MAX_SPAN, 1);
     const crossed = dragView(view, [0.4, 0.6], [0.5, 0.5]);
     assert.ok(crossed.end > crossed.start);
+  });
+});
+
+describe("centerView", () => {
+  it("puts a date in the middle, the span kept", () => {
+    assert.deepEqual(centerView({ start: 1700, end: 1800 }, 1900), {
+      start: 1850,
+      end: 1950,
+    });
+  });
+
+  it("stays within time", () => {
+    const view = centerView({ start: 0, end: 100 }, MAX_YEAR);
+    assert.equal(view.end - view.start, 100);
+    assert.ok(view.end <= MAX_YEAR);
   });
 });

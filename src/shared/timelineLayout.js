@@ -159,7 +159,8 @@ export function initialView(spans) {
 
 /**
  * Places a card for as many events as the window has room for, heaviest
- * first; between events of equal weight, the one the page tells first. A card
+ * first; between events of equal weight, the one the page tells first. The
+ * event the reader picked comes before them all, whatever it weighs. A card
  * starts at its event's date, or ends there when it would otherwise run out
  * of the window, and goes in the first row where it overlaps no other card.
  *
@@ -171,15 +172,23 @@ export function initialView(spans) {
  * @param {number} size.cardWidth in pixels
  * @param {number} size.gap least room between two cards of a row, in pixels
  * @param {number} size.lanes how many rows of cards there are
+ * @param {number | null} [size.picked] the index of the event the reader
+ *   picked, which gets a card if it is in the window
  * @returns {Placed[]} by position, left to right
  */
-export function placeCards(items, view, { width, cardWidth, gap, lanes }) {
+export function placeCards(
+  items,
+  view,
+  { width, cardWidth, gap, lanes, picked = null },
+) {
   const order = items
     .map((item, index) => ({ index, x: xOf(view, item.start, width) }))
     .filter(({ x }) => x + cardWidth > 0 && x < width)
     .sort(
       (a, b) =>
-        items[b.index].weight - items[a.index].weight || a.index - b.index,
+        Number(b.index === picked) - Number(a.index === picked) ||
+        items[b.index].weight - items[a.index].weight ||
+        a.index - b.index,
     );
   const rows = Array.from({ length: lanes }, () => []);
   const placed = [];

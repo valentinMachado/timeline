@@ -166,12 +166,20 @@ const OVERLAY_STYLE = `
 /** The name of the highlight on the date a card scrolled to. */
 const HIGHLIGHT = "timeline-extension-date";
 
+/** The name of the highlight on every date the timeline was made from. */
+const DATES = "timeline-extension-dates";
+
 /**
  * Put in the page, not in a shadow root: a highlight paints the page's text.
  * A translucent yellow, as a marker pen: it reads on a light and a dark
- * theme alike, the text keeping its own colour.
+ * theme alike, the text keeping its own colour. Every date read is a faint
+ * stroke of it; the one a card scrolled to, a full one.
  */
 const PAGE_STYLE = `
+  ::highlight(${DATES}) {
+    background-color: rgb(255 204 51 / 0.22);
+    text-decoration: underline dotted 1px rgb(255 170 0);
+  }
   ::highlight(${HIGHLIGHT}) {
     background-color: rgb(255 204 51 / 0.6);
     text-decoration: underline 2px rgb(255 170 0);
@@ -261,6 +269,11 @@ function unfold(node) {
   folded?.previousElementSibling?.click();
 }
 
+/** @returns {boolean} whether the reader asked for less motion */
+function stillMotion() {
+  return matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 /** The timer that clears the highlight, to restart it on another card. */
 let highlightTimer = 0;
 
@@ -268,26 +281,69 @@ let highlightTimer = 0;
  * Scrolls the article to where a date was read, and highlights it for a
  * while where the browser can (the CSS Custom Highlight API).
  *
- * @param {TextPiece[]} pieces those of the block the date was read in
- * @param {{ start: number, end: number }} mention
+ * @param {Range | null} range where the date is written; null, nothing
  */
-function showInText(pieces, mention) {
-  const range = rangeOf(pieces, mention);
+function showInText(range) {
   if (!range) return;
   unfold(range.startContainer);
   const rect = range.getBoundingClientRect();
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const still = stillMotion();
   window.scrollBy({
     top: rect.top - innerHeight / 3,
     behavior: still ? "auto" : "smooth",
   });
   if (!globalThis.CSS?.highlights) return;
-  CSS.highlights.set(HIGHLIGHT, new Highlight(range));
+  const highlight = new Highlight(range);
+  // Above the faint highlight of every date, which covers the same text.
+  highlight.priority = 1;
+  CSS.highlights.set(HIGHLIGHT, highlight);
   clearTimeout(highlightTimer);
   highlightTimer = setTimeout(
     () => CSS.highlights.delete(HIGHLIGHT),
     HIGHLIGHT_DURATION,
   );
+}
+
+/**
+ * Highlights every date of the article the timeline was made from, and
+ * hands over the one the reader clicks. A highlight is no element, so a
+ * click finds its date by where the date is drawn. A date written as a
+ * link is left to its link.
+ *
+ * @param {(Range | null)[]} ranges by event index; null for a date that
+ *   could not be found again
+ * @param {(index: number) => void} onPick
+ */
+function watchDates(ranges, onPick) {
+  if (!globalThis.CSS?.highlights) return;
+  CSS.highlights.set(DATES, new Highlight(...ranges.filter(Boolean)));
+  const dateAt = ({ target, clientX: x, clientY: y }) => {
+    if (!(target instanceof Element) || target.closest("a, button, input")) {
+      return -1;
+    }
+    // Only the dates in the element under the pointer are measured.
+    return ranges.findIndex(
+      (range) =>
+        range?.intersectsNode(target) &&
+        [...range.getClientRects()].some(
+          (r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom,
+        ),
+    );
+  };
+  document.addEventListener("click", (event) => {
+    // The click that ends a selection is about the selection.
+    if (event.defaultPrevented || !document.getSelection().isCollapsed) return;
+    const index = dateAt(event);
+    if (index !== -1) onPick(index);
+  });
+  let frame = 0;
+  document.addEventListener("pointermove", (event) => {
+    if (event.pointerType !== "mouse" || frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      document.body.style.cursor = dateAt(event) === -1 ? "" : "pointer";
+    });
+  });
 }
 
 /**
@@ -434,7 +490,8 @@ function draftOf(event, sections, pageUrl) {
  * @param {object} handlers each called with the index of an item
  * @param {(index: number) => void} handlers.onOpen its card was clicked
  * @param {(index: number) => void} handlers.onAdd its + was pressed
- * @returns {HTMLElement}
+ * @returns {{ host: HTMLElement, timeline: TimelineView | null }} the
+ *   timeline null when no date was read
  */
 function createBanner(items, { onOpen, onAdd }) {
   const host = document.createElement("div");
@@ -462,8 +519,9 @@ function createBanner(items, { onOpen, onAdd }) {
   );
   header.append(title, summary);
   section.append(header);
+  let timeline = null;
   if (items.length) {
-    const timeline = new TimelineView(items, {
+    timeline = new TimelineView(items, {
       action: {
         text: "+",
         label: chrome.i18n.getMessage("addToMyTimeline"),
@@ -477,7 +535,7 @@ function createBanner(items, { onOpen, onAdd }) {
   header.append(mine);
 
   root.append(style, section);
-  return host;
+  return { host, timeline };
 }
 
 /**
@@ -678,13 +736,24 @@ function injectBanner() {
   const style = document.createElement("style");
   style.textContent = PAGE_STYLE;
   document.head.append(style);
+  const ranges = read.map(({ event, pieces }) =>
+    rangeOf(pieces, event.mention),
+  );
   const banner = createBanner(itemsOf(events, sections, pageUrl), {
-    onOpen: (index) => showInText(read[index].pieces, events[index].mention),
+    onOpen: (index) => showInText(ranges[index]),
     onAdd: (index) =>
       addToMyTimeline(overlay, page, draftOf(events[index], sections, pageUrl)),
   });
-  content.before(banner);
+  content.before(banner.host);
   watchSelection(overlay, page);
+  watchDates(ranges, (index) => {
+    banner.timeline?.reveal(index);
+    // Centred, clear of the skins' sticky header.
+    banner.host.scrollIntoView({
+      block: "center",
+      behavior: stillMotion() ? "auto" : "smooth",
+    });
+  });
 }
 
 injectBanner();
