@@ -1,7 +1,8 @@
 /**
  * Content script for Wikipedia articles: reads the dates of the article and
  * injects, above the article's text, a banner that draws them as a timeline
- * (`timelineView.js`). Each card has a + that adds its event to the
+ * (`timelineView.js`). A card scrolls the article to its date, highlighted;
+ * its ↗ opens the article it is about, and its + adds its event to the
  * reader's own timeline, and selecting text in the article shows a
  * « + My timeline » button that adds the date selected, read leniently, or
  * opens the form to type one the extraction missed.
@@ -162,23 +163,54 @@ const OVERLAY_STYLE = `
   ${FORM_STYLE}
 `;
 
+/** The name of the highlight on the date a card scrolled to. */
+const HIGHLIGHT = "timeline-extension-date";
+
+/**
+ * Put in the page, not in a shadow root: a highlight paints the page's text.
+ * A translucent yellow, as a marker pen: it reads on a light and a dark
+ * theme alike, the text keeping its own colour.
+ */
+const PAGE_STYLE = `
+  ::highlight(${HIGHLIGHT}) {
+    background-color: rgb(255 204 51 / 0.6);
+    text-decoration: underline 2px rgb(255 170 0);
+  }
+`;
+
+/** How long the date a card scrolled to stays highlighted, in milliseconds. */
+const HIGHLIGHT_DURATION = 4000;
+
 /** How long the note that an event was added stays, in milliseconds. */
 const TOAST_DURATION = 2500;
 
 /**
+ * @typedef {object} TextPiece
+ * @property {Text} node a text node of the block
+ * @property {number} start the offset of its first character in the block
+ */
+
+/**
  * The text of a paragraph or list item, or of a selection, and the article
- * links in it, with their offsets into that text. A nested list is left
+ * links in it, with their offsets into that text; and the text nodes it was
+ * read from, to find an offset in the page again. A nested list is left
  * out: its items are blocks of their own.
  *
  * @param {Element | DocumentFragment} element
- * @returns {{ text: string, links: { start: number, end: number, href: string }[] }}
+ * @returns {{
+ *   text: string,
+ *   links: { start: number, end: number, href: string }[],
+ *   pieces: TextPiece[],
+ * }}
  */
 function readBlock(element) {
   let text = "";
   const links = [];
+  const pieces = [];
   const visit = (node) => {
     for (const child of node.childNodes) {
       if (child.nodeType === Node.TEXT_NODE) {
+        pieces.push({ node: child, start: text.length });
         text += child.data;
       } else if (child instanceof Element && !child.matches(SKIPPED_INLINE)) {
         const start = text.length;
@@ -190,7 +222,72 @@ function readBlock(element) {
     }
   };
   visit(element);
-  return { text, links };
+  return { text, links, pieces };
+}
+
+/**
+ * The range of the page a span of a block's text was read from.
+ *
+ * @param {TextPiece[]} pieces the block's, from `readBlock`
+ * @param {{ start: number, end: number }} span offsets into the block's text
+ * @returns {Range | null} null if the span is in no piece
+ */
+function rangeOf(pieces, { start, end }) {
+  // The start is in the piece it begins; the end, in the piece it closes.
+  const at = (offset, after) =>
+    pieces.find(
+      ({ node, start: from }) =>
+        offset >= from + after && offset < from + node.data.length + after,
+    );
+  const first = at(start, 0);
+  const last = at(end, 1);
+  if (!first || !last) return null;
+  const range = document.createRange();
+  range.setStart(first.node, start - first.start);
+  range.setEnd(last.node, end - last.start);
+  return range;
+}
+
+/**
+ * Opens the section of the mobile site that hides a node: there, every
+ * section but the lead starts folded, and its heading unfolds it.
+ *
+ * @param {Node} node
+ */
+function unfold(node) {
+  const folded = node.parentElement?.closest(
+    ".collapsible-block:not(.open-block)",
+  );
+  folded?.previousElementSibling?.click();
+}
+
+/** The timer that clears the highlight, to restart it on another card. */
+let highlightTimer = 0;
+
+/**
+ * Scrolls the article to where a date was read, and highlights it for a
+ * while where the browser can (the CSS Custom Highlight API).
+ *
+ * @param {TextPiece[]} pieces those of the block the date was read in
+ * @param {{ start: number, end: number }} mention
+ */
+function showInText(pieces, mention) {
+  const range = rangeOf(pieces, mention);
+  if (!range) return;
+  unfold(range.startContainer);
+  const rect = range.getBoundingClientRect();
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollBy({
+    top: rect.top - innerHeight / 3,
+    behavior: still ? "auto" : "smooth",
+  });
+  if (!globalThis.CSS?.highlights) return;
+  CSS.highlights.set(HIGHLIGHT, new Highlight(range));
+  clearTimeout(highlightTimer);
+  highlightTimer = setTimeout(
+    () => CSS.highlights.delete(HIGHLIGHT),
+    HIGHLIGHT_DURATION,
+  );
 }
 
 /**
@@ -219,7 +316,8 @@ function anchorOf(heading) {
  * @param {Element} content the article's text, `.mw-parser-output`
  * @param {string} title the article's title, which names the lead
  * @returns {{
- *   blocks: import("../shared/dateExtraction.js").Block[],
+ *   blocks: (import("../shared/dateExtraction.js").Block
+ *     & { pieces: TextPiece[] })[],
  *   sections: Map<string | null, Section>,
  * }} the sections by anchor, the lead's null
  */
@@ -297,7 +395,8 @@ function itemsOf(events, sections, pageUrl) {
       weight: weightOf(event, pageUrl),
       written: event.written,
       title,
-      href: event.link,
+      href: null,
+      article: event.link,
       description: event.sentence.text,
       picture: () => pictureOf(image),
     };
@@ -332,11 +431,12 @@ function draftOf(event, sections, pageUrl) {
  * are dates, the timeline, each card with a + that adds its event.
  *
  * @param {import("../ui/timelineView.js").TimelineItem[]} items
- * @param {(index: number) => void} onAdd called with the index of the item
- *   whose + was pressed
+ * @param {object} handlers each called with the index of an item
+ * @param {(index: number) => void} handlers.onOpen its card was clicked
+ * @param {(index: number) => void} handlers.onAdd its + was pressed
  * @returns {HTMLElement}
  */
-function createBanner(items, onAdd) {
+function createBanner(items, { onOpen, onAdd }) {
   const host = document.createElement("div");
   host.id = HOST_ID;
   const root = host.attachShadow({ mode: "closed" });
@@ -369,6 +469,7 @@ function createBanner(items, onAdd) {
         label: chrome.i18n.getMessage("addToMyTimeline"),
         run: onAdd,
       },
+      open: onOpen,
     });
     header.append(timeline.controls());
     section.append(timeline.element);
@@ -568,12 +669,20 @@ function injectBanner() {
     story,
     articleTitle(pageUrl) ?? document.title,
   );
-  const events = blocks.flatMap((block) => extractEvents(block, options));
+  const read = blocks.flatMap(({ pieces, ...block }) =>
+    extractEvents(block, options).map((event) => ({ event, pieces })),
+  );
+  const events = read.map(({ event }) => event);
   const page = { language, pageUrl, story, sections };
   const overlay = createOverlay();
-  const banner = createBanner(itemsOf(events, sections, pageUrl), (index) =>
-    addToMyTimeline(overlay, page, draftOf(events[index], sections, pageUrl)),
-  );
+  const style = document.createElement("style");
+  style.textContent = PAGE_STYLE;
+  document.head.append(style);
+  const banner = createBanner(itemsOf(events, sections, pageUrl), {
+    onOpen: (index) => showInText(read[index].pieces, events[index].mention),
+    onAdd: (index) =>
+      addToMyTimeline(overlay, page, draftOf(events[index], sections, pageUrl)),
+  });
   content.before(banner);
   watchSelection(overlay, page);
 }

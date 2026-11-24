@@ -123,14 +123,16 @@ range, precision, sentence with its links, nearest article link, section —
 and draws them in a banner above the text: a timeline zoomed with the wheel
 or the buttons, panned by dragging or with the keys, where the heaviest
 events get a card with the picture of their article (REST `page/summary`)
-and the others a dot on the axis. A card leads to its article; a finger
-pans and pinches. The + of a card, or the button shown below a selection of
+and the others a dot on the axis. A card scrolls the article to its date,
+highlighted, and its ↗ opens the article it is about; a finger pans and
+pinches. The + of a card, or the button shown below a selection of
 the article (read leniently), opens a form that adds the event to the
 reader's own timeline, typed by hand when no date is read. That timeline is
 kept in `chrome.storage.local`: entries in layers (name, colour, shown or
 hidden), with tags, a description with links, and a picture (the article's
 thumbnail, a picture online, or a photo of the device). Its page, opened by
-the toolbar button or the banner, draws it coloured by layer, filters it by
+the toolbar button or the banner, draws it coloured by layer (a card opens
+the page it was read in at its date, a text fragment), filters it by
 tag, lists it, and exports it to a file (photos included) that another
 device imports by merging. The plan, phase by phase, is
 `management/backlog/frise.md`.

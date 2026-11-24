@@ -1,9 +1,11 @@
 /**
  * A timeline drawn into an element: an axis of graduated time, a mark on it
  * for every event, and a card with a picture for the events the zoom has
- * room for, each card a link to where its event leads. The banner of a
- * Wikipedia article draws the page's events with it; the reader's timeline
- * page draws the reader's entries, coloured by layer.
+ * room for. A card leads to where its event was read — the passage of the
+ * page — and its ↗ to the article it is about. The banner of a Wikipedia
+ * article draws the page's events with it, a card scrolling the article to
+ * its date; the reader's timeline page draws the reader's entries, coloured
+ * by layer, a card opening the page each was added from.
  *
  * The wheel zooms around the cursor, a drag or a horizontal scroll pans, a
  * finger pans and two fingers pinch, the keyboard does both once the
@@ -141,6 +143,15 @@ export const TIMELINE_STYLE = `
     color: inherit;
     text-decoration: none;
   }
+  button.link {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    text-align: start;
+    background: none;
+    border: 0;
+    border-radius: 0;
+  }
   .link:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
@@ -201,12 +212,27 @@ export const TIMELINE_STYLE = `
     line-height: 1;
     opacity: 0.75;
   }
+  .action.open {
+    top: auto;
+    bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    text-decoration: none;
+    /* A link dressed as the buttons beside it. */
+    color: var(--color-base, #202122);
+    background: var(--background-color-interactive-subtle, #f8f9fa);
+    border: 1px solid var(--border-color-base, #a2a9b1);
+    border-radius: 2px;
+  }
   .action:hover, .action:focus-visible { opacity: 1; }
   /* A finger needs a bigger target than a cursor. */
   @media (pointer: coarse) {
     .controls button { min-width: 2.5em; min-height: 2.25em; }
-    .action { width: 30px; height: 30px; }
-    .card.acting .link { padding-right: 34px; }
+    /* Two of them stack in a card's height. */
+    .action { width: 26px; height: 26px; }
+    .card.acting .link { padding-right: 30px; }
   }
 `;
 
@@ -217,7 +243,10 @@ export const TIMELINE_STYLE = `
  * @property {number} weight from `weightOf` or `weightOfEntry`
  * @property {string} written the date as written
  * @property {string} title the article or the entry the event is
- * @property {string | null} href where its card leads, null for nowhere
+ * @property {string | null} href where its card leads, null for nowhere or
+ *   when the view's `open` handles the click
+ * @property {string | null} [article] where its ↗ leads: the article the
+ *   event is about, when the card leads elsewhere
  * @property {string} description what a hovered card says
  * @property {() => Promise<string | null>} picture asked for the card's
  *   picture the first time the card is drawn, so that only the cards a
@@ -240,12 +269,16 @@ export class TimelineView {
    * @param {TimelineItem[]} items the events
    * @param {object} [options]
    * @param {CardAction} [options.action] a button on every card
+   * @param {(index: number) => void} [options.open] what a click on a card
+   *   does, given the index of its item, in place of following its `href`
    */
-  constructor(items, { action } = {}) {
+  constructor(items, { action, open } = {}) {
     /** The events, set by the owner: once, or again by `setItems`. */
     this.items = items;
     /** The button on every card, set by the owner. */
     this.action = action ?? null;
+    /** What a click on a card does, set by the owner; null to follow it. */
+    this.open = open ?? null;
     /** The window on time, set by the reader's zooms and pans. */
     this.view = initialView(items);
 
@@ -421,12 +454,17 @@ export class TimelineView {
       restart();
       if (this.pointers.size) return;
       element.classList.remove("dragging");
-      // The click that ends a drag must not follow a card's link.
+      // The click that ends a drag must not reach a card. It comes in the
+      // same task as the pointerup, if at all: a later one is the reader's.
       if (moved && event.type === "pointerup") {
-        element.addEventListener("click", (e) => e.preventDefault(), {
-          capture: true,
-          once: true,
-        });
+        const swallow = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        element.addEventListener("click", swallow, { capture: true });
+        setTimeout(() =>
+          element.removeEventListener("click", swallow, { capture: true }),
+        );
       }
     };
     window.addEventListener("pointerup", release);
@@ -522,9 +560,15 @@ export class TimelineView {
     if (item.color) card.style.setProperty("--layer", item.color);
 
     // A card that leads nowhere is read the same way, without a link.
-    const link = document.createElement(item.href ? "a" : "div");
+    const tag = this.open ? "button" : item.href ? "a" : "div";
+    const link = document.createElement(tag);
     link.className = "link";
-    if (item.href) link.href = item.href;
+    if (this.open) {
+      link.type = "button";
+      link.addEventListener("click", () => this.open(index));
+    } else if (item.href) {
+      link.href = item.href;
+    }
     link.title = item.description;
     link.draggable = false;
 
@@ -568,6 +612,18 @@ export class TimelineView {
       button.addEventListener("click", () => run(index));
       card.classList.add("acting");
       card.append(button);
+    }
+    if (item.article) {
+      const label = chrome.i18n.getMessage("openArticle");
+      const open = document.createElement("a");
+      open.className = "action open";
+      open.href = item.article;
+      open.textContent = "↗";
+      open.title = label;
+      open.draggable = false;
+      open.setAttribute("aria-label", `${label} — ${item.title}`);
+      card.classList.add("acting");
+      card.append(open);
     }
 
     this.cards.set(index, card);

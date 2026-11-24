@@ -190,6 +190,22 @@ export function datePartOf(event) {
 }
 
 /**
+ * Where an entry was read: its source page with a text fragment on the
+ * date as written, which the browser scrolls to and highlights. A page
+ * that no longer writes the date just opens at its top.
+ *
+ * @param {Entry} entry
+ * @returns {string | null} null for an entry typed without a source
+ */
+export function passageOf({ source, written }) {
+  if (!source) return null;
+  // A text directive reserves `-`, `,` and `&`; encodeURIComponent keeps `-`.
+  const text = encodeURIComponent(written).replaceAll("-", "%2D");
+  const fragment = source.url.includes("#") ? ":~:text=" : "#:~:text=";
+  return text ? `${source.url}${fragment}${text}` : source.url;
+}
+
+/**
  * Cuts what the reader typed into tags: comma-separated, trimmed, each
  * once whatever its case, the first spelling kept.
  *

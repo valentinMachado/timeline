@@ -17,6 +17,7 @@ import {
   orphanPhotos,
   parseKey,
   parseTags,
+  passageOf,
   pointFromJson,
   pointToJson,
   readDate,
@@ -324,5 +325,39 @@ describe("orphanPhotos", () => {
   it("lists the photos no entry shows", () => {
     const entries = [entry({ image: { photo: "p1" } }), entry()];
     assert.deepEqual(orphanPhotos(["p1", "p2"], entries), ["p2"]);
+  });
+});
+
+describe("passageOf", () => {
+  const source = {
+    url: "https://fr.wikipedia.org/wiki/R%C3%A9volution_fran%C3%A7aise",
+    title: "Révolution française",
+  };
+
+  it("points at the date as written in the source page", () => {
+    assert.equal(
+      passageOf(entry({ source, written: "14 juillet 1789" })),
+      `${source.url}#:~:text=14%C2%A0juillet%201789`,
+    );
+  });
+
+  it("escapes what a text directive reserves", () => {
+    const written = "1789-1799, & après";
+    assert.equal(
+      passageOf(entry({ source, written })),
+      `${source.url}#:~:text=1789%2D1799%2C%20%26%20apr%C3%A8s`,
+    );
+  });
+
+  it("adds to a fragment the source already has", () => {
+    const url = `${source.url}#Chronologie`;
+    assert.equal(
+      passageOf(entry({ source: { ...source, url }, written: "1789" })),
+      `${url}:~:text=1789`,
+    );
+  });
+
+  it("is null without a source", () => {
+    assert.equal(passageOf(entry()), null);
   });
 });

@@ -12,6 +12,7 @@
 import {
   eventOfEntry,
   newLayer,
+  passageOf,
   tagsOf,
   visibleEntries,
 } from "../shared/myTimeline.js";
@@ -295,7 +296,9 @@ class MyTimelinePage {
         weight: weightOfEntry(entry),
         written: entry.written,
         title: entry.title,
-        href: entry.link,
+        // The page it was read in, at its date; failing one, its link.
+        href: passageOf(entry) ?? entry.link,
+        article: entry.source ? entry.link : null,
         description: entry.description.text,
         picture: () => pictureOf(entry.image),
         color: colors.get(entry.layer),
@@ -467,7 +470,13 @@ class MyTimelinePage {
           make(
             "div",
             { className: "body" },
-            make("span", { className: "when" }, entry.written),
+            entry.source
+              ? make(
+                  "a",
+                  { className: "when", href: passageOf(entry) },
+                  entry.written,
+                )
+              : make("span", { className: "when" }, entry.written),
             title,
             description,
             make("p", { className: "meta" }, meta),

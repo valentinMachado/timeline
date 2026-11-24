@@ -97,6 +97,10 @@
     "message": "Add to my timeline",
     "description": "The + on a card of the banner's timeline, and the title of the form that adds an event."
   },
+  "openArticle": {
+    "message": "Open the page it is about",
+    "description": "The ↗ on a card of a timeline: opens the article its event is about, while the card itself leads to where the date was read."
+  },
   "addSelection": {
     "message": "+ My timeline",
     "description": "Button shown below text selected in an article: adds the date in it to the reader's timeline."

@@ -97,6 +97,10 @@
     "message": "Ajouter à ma frise",
     "description": "The + on a card of the banner's timeline, and the title of the form that adds an event."
   },
+  "openArticle": {
+    "message": "Ouvrir la page dont il parle",
+    "description": "The ↗ on a card of a timeline: opens the article its event is about, while the card itself leads to where the date was read."
+  },
   "addSelection": {
     "message": "+ Ma frise",
     "description": "Button shown below text selected in an article: adds the date in it to the reader's timeline."
