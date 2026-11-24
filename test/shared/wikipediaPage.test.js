@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  articleIn,
   articleTitle,
+  articleUrl,
+  historyUrl,
   isArticleView,
   isBackMatter,
   pageLanguage,
+  parseUrl,
   summaryUrl,
 } from "../../src/shared/wikipediaPage.js";
 
@@ -98,4 +102,66 @@ test("an article's summary is asked of its Wikipedia's REST API", () => {
 test("a link elsewhere has no summary", () => {
   assert.equal(summaryUrl("https://fr.wikipedia.org/wiki/Fichier:X.jpg"), null);
   assert.equal(summaryUrl("https://www.example.org/wiki/Paris"), null);
+});
+
+test("an article's address is written as MediaWiki writes its links", () => {
+  assert.equal(
+    articleUrl("fr", "Révolution française"),
+    "https://fr.wikipedia.org/wiki/R%C3%A9volution_fran%C3%A7aise",
+  );
+  // MediaWiki keeps these as they are; an address built otherwise would
+  // not equal the article's links to itself.
+  assert.equal(
+    articleUrl("en", "AC/DC: Live, 1992 (album)"),
+    "https://en.wikipedia.org/wiki/AC/DC:_Live,_1992_(album)",
+  );
+  assert.equal(articleTitle(articleUrl("en", "C++")), "C++");
+});
+
+test("a shared text leads to the article whose address it holds", () => {
+  assert.deepEqual(articleIn("https://fr.wikipedia.org/wiki/Rome_antique"), {
+    language: "fr",
+    title: "Rome antique",
+    fragment: "",
+  });
+  // Chrome on Android may share the title, then the address.
+  assert.deepEqual(
+    articleIn(
+      "French Revolution - Wikipedia https://en.m.wikipedia.org/wiki/French_Revolution#Causes",
+    ),
+    { language: "en", title: "French Revolution", fragment: "Causes" },
+  );
+  assert.deepEqual(
+    articleIn(
+      "https://fr.wikipedia.org/wiki/R%C3%A9volution_fran%C3%A7aise#La_Terreur_(1793-1794)",
+    ),
+    {
+      language: "fr",
+      title: "Révolution française",
+      fragment: "La_Terreur_(1793-1794)",
+    },
+  );
+});
+
+test("a shared text without an article leads nowhere", () => {
+  assert.equal(articleIn("Rome antique"), null);
+  assert.equal(articleIn("https://example.org/wiki/Rome"), null);
+  assert.equal(articleIn("https://fr.wikipedia.org/wiki/Catégorie:Rome"), null);
+  assert.equal(articleIn(""), null);
+});
+
+test("an article's text is asked of the Action API, open to every origin", () => {
+  const url = new URL(parseUrl("fr", "Rome antique"));
+  assert.equal(url.origin + url.pathname, "https://fr.wikipedia.org/w/api.php");
+  assert.equal(url.searchParams.get("action"), "parse");
+  assert.equal(url.searchParams.get("page"), "Rome antique");
+  assert.equal(url.searchParams.get("origin"), "*");
+  assert.equal(url.searchParams.get("redirects"), "1");
+});
+
+test("an article's authors are in its history", () => {
+  const url = new URL(historyUrl("en", "French Revolution"));
+  assert.equal(url.hostname, "en.wikipedia.org");
+  assert.equal(url.searchParams.get("title"), "French_Revolution");
+  assert.equal(url.searchParams.get("action"), "history");
 });

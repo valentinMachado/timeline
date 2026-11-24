@@ -45,14 +45,16 @@ Everything is ESM (`"type": "module"`).
 | ------------------- | ----------------------------------------------------------------- |
 | `src/shared/`       | anywhere: content script, service worker, popup, Node             |
 | `src/content/`      | a web page, as a content script (DOM + `chrome.*`)                |
-| `src/ui/`           | DOM + `chrome.*`, in a content script or a page alike             |
+| `src/ui/`           | DOM, in a content script, a page or the site alike (see below)    |
+| `src/web/`          | the installable site (PWA): its page, its worker, its manifest    |
 | `src/pages/`        | the extension's own pages (`pages/x.html` + `x.js`)               |
 | `src/background.js` | the background script: a worker (Chrome), an event page (Firefox) |
 | `src/manifest.js`   | Node, at build time; pure, so the tests reach it                  |
-| `src/_locales/`     | copied as is into the built extension                             |
+| `src/_locales/`     | copied into the built extension; bundled into the site            |
 | `scripts/`          | Node: the build                                                   |
 | `test/`             | Node (`node:test`), mirroring `src/`                              |
 | `dist/<browser>/`   | the built extension, gitignored                                   |
+| `dist/web/`         | the built site, gitignored; published by `.github/workflows/`     |
 
 **One source, specialised per browser.** `src/manifest.js` writes the
 manifest once; what only Chrome or only Firefox needs is a row of its
@@ -63,6 +65,18 @@ its entry points in the manifest itself: a script the manifest loads at
 `pages/x.html` is copied and loads `pages/x.js`, so a new script or page is
 added in one place. Both browsers expose the extension API as `chrome.*`, so the code
 uses that name and needs no polyfill.
+
+**The installable site is a third target, not a second codebase.** Chrome
+on Android takes no extension, so the same article timeline is also built
+into `dist/web/` (`src/web/manifest.js` lists its files), a site that
+fetches an article from Wikipedia's Action API (`action=parse`, the site's
+own HTML, which the extension's reading takes unchanged) and draws it with
+the same `src/ui/articleTimeline.js`. What differs between the two is chosen
+at build time, never tested at run time: a module that must differ is
+imported by a `#name` of `package.json`'s `imports`, whose `web` condition
+the site's build sets (`#i18n`: `chrome.i18n` in the extension, the bundled
+`messages.json` on the site). Code in `src/ui/` touches `chrome.*` only
+inside a function the site never calls, never when its module loads.
 
 **A content script draws in a shadow root**, so that the page's styles do not
 reach the extension's markup and its own do not leak into the page. On
@@ -81,9 +95,10 @@ there — date parsing, layout arithmetic, the reader's timeline and its
 backups — the more of it is tested. ESLint gives that folder no globals but
 `URL`, which every place it runs has, so a stray `document` fails the lint.
 
-**Every user-visible string goes through a literal
-`chrome.i18n.getMessage("key")`**, never a helper or a key picked at run
-time: the locales test finds the keys the code uses by that call.
+**Every user-visible string goes through a literal `message("key")`**,
+imported from `#i18n`, never a key picked at run time: the locales test
+finds the keys the code uses by that call, and the `__MSG_key__` of the
+extension's and the site's manifests.
 
 **What works with a mouse works with a finger.** Firefox for Android runs the
 extension: a gesture has its touch form (a pinch for the wheel, a press for
@@ -143,7 +158,7 @@ missing one, which the reader can add. Every rule is tested on real excerpts
 of Wikipedia, both languages alike.
 
 **Drawing a timeline** is decided in `src/shared/` and only carried out in
-`src/content/`: where a date falls and how the window zooms
+`src/ui/`: where a date falls and how the window zooms
 (`timeScale.js`), which events get a card at a zoom and where
 (`timelineLayout.js`). An event's weight — what earns it a card when room
 is short — is a function of its fields (`WEIGHTS`, a table), never a stored

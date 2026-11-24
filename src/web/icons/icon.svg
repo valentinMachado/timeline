@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full bleed, the drawing inside the central 80 %: safe as a maskable icon. -->
+  <rect width="512" height="512" fill="#3366cc"/>
+  <rect x="96" y="300" width="320" height="16" rx="8" fill="#fff"/>
+  <rect x="120" y="160" width="96" height="84" rx="10" fill="#fff"/>
+  <rect x="292" y="196" width="96" height="84" rx="10" fill="#ffcc33"/>
+  <rect x="164" y="244" width="8" height="64" fill="#fff"/>
+  <rect x="336" y="280" width="8" height="28" fill="#ffcc33"/>
+  <circle cx="232" cy="308" r="14" fill="#fff"/>
+  <circle cx="268" cy="308" r="10" fill="#fff"/>
+  <circle cx="392" cy="308" r="10" fill="#fff"/>
+</svg>

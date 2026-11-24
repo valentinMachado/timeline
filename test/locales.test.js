@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { TARGETS, manifestFor } from "../src/manifest.js";
+import { WEB_MANIFEST } from "../src/web/manifest.js";
 
 const LOCALES = "src/_locales";
 const languages = readdirSync(LOCALES);
@@ -25,12 +26,17 @@ function usedKeys() {
   const keys = new Set();
   for (const file of filesUnder("src")) {
     const source = readFileSync(file, "utf8");
-    for (const [, key] of source.matchAll(/getMessage\(\s*"(\w+)"/g)) {
+    // `message` from `#i18n`, not a method of the same name.
+    for (const [, key] of source.matchAll(/(?<![.\w])message\(\s*"(\w+)"/g)) {
       keys.add(key);
     }
   }
-  for (const target of Object.keys(TARGETS)) {
-    const json = JSON.stringify(manifestFor(target, "0.0.0"));
+  const manifests = [
+    ...Object.keys(TARGETS).map((target) => manifestFor(target, "0.0.0")),
+    WEB_MANIFEST,
+  ];
+  for (const manifest of manifests) {
+    const json = JSON.stringify(manifest);
     for (const [, key] of json.matchAll(/__MSG_(\w+)__/g)) keys.add(key);
   }
   return keys;

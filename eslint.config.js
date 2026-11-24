@@ -26,10 +26,21 @@ export default [
     },
   },
   {
+    // The installable site's page: the DOM, and no extension API.
+    files: ["src/web/**/*.js"],
+    ignores: ["src/web/sw.js", "src/web/manifest.js"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
+    // Its service worker.
+    files: ["src/web/sw.js"],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     // Pure code shared by every part of the extension: neither the DOM nor
     // Node's own modules, so it runs in a page, a worker and the tests alike.
     // `URL` is the one global they use: every one of those places has it.
-    files: ["src/shared/**/*.js", "src/manifest.js"],
+    files: ["src/shared/**/*.js", "src/manifest.js", "src/web/manifest.js"],
     languageOptions: { globals: { URL: "readonly" } },
   },
 ];

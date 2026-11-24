@@ -310,5 +310,67 @@
         "example": "12"
       }
     }
+  },
+  "webShortName": {
+    "message": "Timeline",
+    "description": "Name of the installable site, short enough for a phone's home screen."
+  },
+  "webIntro": {
+    "message": "Open a Wikipedia article to see its dates on an illustrated timeline. On a phone, install this site from the browser's menu, then share an article to it from Wikipedia.",
+    "description": "First page of the installable site: what it does and how to send it an article."
+  },
+  "webArticleLabel": {
+    "message": "Article: its address or its title",
+    "description": "Field of the installable site where an article is typed or pasted."
+  },
+  "webLanguageLabel": {
+    "message": "Wikipedia's language",
+    "description": "Choice of the Wikipedia a typed title is looked up in."
+  },
+  "webOpen": {
+    "message": "Open",
+    "description": "Button of the installable site that opens the article typed."
+  },
+  "webLoading": {
+    "message": "Loading the article…",
+    "description": "Shown while the installable site fetches an article."
+  },
+  "webNotArticle": {
+    "message": "This is not an article of the English or French Wikipedia.",
+    "description": "Shown when what was shared or typed is not an article the site reads."
+  },
+  "webMissing": {
+    "message": "Wikipedia has no article with this title.",
+    "description": "Shown when the article asked for does not exist."
+  },
+  "webFailed": {
+    "message": "The article could not be loaded. Check the connection and try again.",
+    "description": "Shown when Wikipedia could not be reached."
+  },
+  "webReadOnWikipedia": {
+    "message": "Read on Wikipedia",
+    "description": "Link from the installable site to the article on Wikipedia."
+  },
+  "webAuthors": {
+    "message": "its authors",
+    "description": "Link to the history of an article, in the licence credit."
+  },
+  "webLicence": {
+    "message": "Text of the Wikipedia article $ARTICLE$ by $AUTHORS$, under the $LICENCE$ licence.",
+    "description": "Credit under an article shown by the installable site; each placeholder becomes a link.",
+    "placeholders": {
+      "article": {
+        "content": "$1",
+        "example": "French Revolution"
+      },
+      "authors": {
+        "content": "$2",
+        "example": "its authors"
+      },
+      "licence": {
+        "content": "$3",
+        "example": "CC BY-SA 4.0"
+      }
+    }
   }
 }

@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#3366cc" />
+    <title>Timeline</title>
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <!-- app.js points it at the reader's language. -->
+    <link rel="manifest" href="manifest.en.webmanifest" />
+    <style>
+      /*
+       * Wikipedia's design tokens, which the banner reads as it does on
+       * Wikipedia itself, in a light and a dark theme.
+       */
+      :root {
+        color-scheme: light dark;
+        --color-base: #202122;
+        --color-subtle: #54595d;
+        --color-inverted: #fff;
+        --color-progressive: #36c;
+        --color-error: #bf3c2c;
+        --color-success: #177860;
+        --background-color-base: #fff;
+        --background-color-neutral-subtle: #f8f9fa;
+        --background-color-interactive: #eaecf0;
+        --background-color-interactive-subtle: #f8f9fa;
+        --border-color-base: #a2a9b1;
+        --border-color-subtle: #c8ccd1;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --color-base: #eaecf0;
+          --color-subtle: #a2a9b1;
+          --color-inverted: #101418;
+          --color-progressive: #88a3e8;
+          --color-error: #fd7865;
+          --color-success: #3cb08c;
+          --background-color-base: #101418;
+          --background-color-neutral-subtle: #1d2025;
+          --background-color-interactive: #27292d;
+          --background-color-interactive-subtle: #202122;
+          --border-color-base: #72777d;
+          --border-color-subtle: #54595d;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        line-height: 1.6;
+        color: var(--color-base);
+        background: var(--background-color-base);
+      }
+      a {
+        color: var(--color-progressive);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5em 1em;
+        padding: 0.5em 1em;
+        color: #fff;
+        background: #3366cc;
+      }
+      .bar .home {
+        color: inherit;
+        font-weight: bold;
+        text-decoration: none;
+      }
+      .bar form {
+        flex: 1 1 16em;
+        display: flex;
+        gap: 0.5em;
+      }
+      .bar input,
+      .bar select,
+      .bar button {
+        font: inherit;
+        min-height: 2.25em;
+        border: 0;
+        border-radius: 2px;
+      }
+      .bar input {
+        flex: 1;
+        min-width: 0;
+        padding: 0 0.5em;
+      }
+      main {
+        max-width: 60em;
+        margin: 0 auto;
+        padding: 1em;
+      }
+      .notice {
+        color: var(--color-subtle);
+      }
+      .notice.error {
+        color: var(--color-error);
+      }
+      h1 {
+        margin: 0;
+        font-family: serif;
+        font-weight: normal;
+        font-size: 1.8em;
+      }
+      .source,
+      .licence {
+        font-size: 0.875em;
+        color: var(--color-subtle);
+      }
+      .licence {
+        margin-top: 2em;
+        padding-top: 1em;
+        border-top: 1px solid var(--border-color-subtle);
+      }
+
+      /* The article: enough of Wikipedia's look to read it. */
+      .mw-parser-output img {
+        max-width: 100%;
+        height: auto;
+      }
+      .mw-parser-output h2 {
+        font-family: serif;
+        font-weight: normal;
+        border-bottom: 1px solid var(--border-color-base);
+      }
+      .mw-parser-output table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        border-collapse: collapse;
+        font-size: 0.875em;
+      }
+      .mw-parser-output figure {
+        margin: 1em 0;
+      }
+      .mw-parser-output figcaption {
+        font-size: 0.875em;
+        color: var(--color-subtle);
+      }
+      .mw-parser-output sup.reference {
+        font-size: 0.75em;
+      }
+      .mw-parser-output .mw-editsection,
+      .mw-parser-output .navbox,
+      .mw-parser-output .noprint,
+      .mw-parser-output .mw-empty-elt {
+        display: none;
+      }
+      @media (min-width: 50em) {
+        .mw-parser-output .infobox,
+        .mw-parser-output .infobox_v2,
+        .mw-parser-output .infobox_v3,
+        .mw-parser-output figure[typeof~="mw:File/Thumb"],
+        .mw-parser-output figure[typeof~="mw:File/Frame"] {
+          float: right;
+          clear: right;
+          max-width: 22em;
+          margin: 0 0 1em 1em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <script src="app.js"></script>
+  </body>
+</html>

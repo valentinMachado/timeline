@@ -138,3 +138,89 @@ export function summaryUrl(href) {
   const path = encodeURIComponent(title.replace(/ /g, "_"));
   return `https://${language}.wikipedia.org/api/rest_v1/page/summary/${path}`;
 }
+
+/**
+ * The characters MediaWiki leaves as they are in an article's path
+ * (`wfUrlencode`), so that an address built here is the one its own links
+ * give, and a link of the article to itself is recognised.
+ */
+const PATH_KEPT = /%(?:3B|40|24|21|2A|2C|2F|3A)/g;
+
+/**
+ * The address of an article on the desktop site of its Wikipedia, written
+ * as MediaWiki writes its links.
+ *
+ * @param {string} language
+ * @param {string} title spaces or underscores alike
+ * @returns {string}
+ */
+export function articleUrl(language, title) {
+  const path = encodeURIComponent(title.replace(/ /g, "_")).replace(
+    PATH_KEPT,
+    decodeURIComponent,
+  );
+  return `https://${language}.wikipedia.org/wiki/${path}`;
+}
+
+/**
+ * The article an address leads to, wherever it is in a text: a browser
+ * shares a page as its address, alone or after its title.
+ *
+ * @param {string} text
+ * @returns {{ language: string, title: string, fragment: string } | null}
+ *   the section it points at in `fragment`, decoded, empty for none; null
+ *   when the text holds no article's address
+ */
+export function articleIn(text) {
+  const match = /https:\/\/[a-z-]+\.(?:m\.)?wikipedia\.org\/wiki\/\S+/.exec(
+    text,
+  );
+  const title = match && articleTitle(match[0]);
+  if (!title) return null;
+  const url = new URL(match[0]);
+  let fragment;
+  try {
+    fragment = decodeURIComponent(url.hash.slice(1));
+  } catch {
+    fragment = "";
+  }
+  return { language: pageLanguage(url.hostname), title, fragment };
+}
+
+/**
+ * Where the Action API gives an article's text as the site's own HTML
+ * (`action=parse`), which the extension reads unchanged; open to every
+ * origin (`origin=*`, no cookies), redirects followed.
+ *
+ * @param {string} language
+ * @param {string} title
+ * @returns {string}
+ */
+export function parseUrl(language, title) {
+  const query = new URLSearchParams({
+    action: "parse",
+    page: title,
+    prop: "text|displaytitle",
+    redirects: "1",
+    disableeditsection: "1",
+    format: "json",
+    formatversion: "2",
+    origin: "*",
+  });
+  return `https://${language}.wikipedia.org/w/api.php?${query}`;
+}
+
+/**
+ * Where the authors of an article are listed: its history.
+ *
+ * @param {string} language
+ * @param {string} title
+ * @returns {string}
+ */
+export function historyUrl(language, title) {
+  const query = new URLSearchParams({
+    title: title.replace(/ /g, "_"),
+    action: "history",
+  });
+  return `https://${language}.wikipedia.org/w/index.php?${query}`;
+}

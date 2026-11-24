@@ -7,6 +7,7 @@
  * phone's width.
  */
 
+import { message } from "#i18n";
 import { newLayer, parseTags, readDate, tagsOf } from "../shared/myTimeline.js";
 import { formatRichText, parseRichText, safeUrl } from "../shared/richText.js";
 import { photoFromFile } from "./photos.js";
@@ -258,7 +259,7 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
   const chooseButton = make(
     "button",
     { type: "button" },
-    chrome.i18n.getMessage("choosePhoto"),
+    message("choosePhoto"),
   );
   chooseButton.addEventListener("click", () => photoInput.click());
   const photoStatus = make("span", { className: "status bad", hidden: true });
@@ -271,14 +272,14 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
       photoStatus.hidden = true;
       showImage();
     } catch {
-      photoStatus.textContent = chrome.i18n.getMessage("photoFailed");
+      photoStatus.textContent = message("photoFailed");
       photoStatus.hidden = false;
     }
   });
   const removeButton = make(
     "button",
     { type: "button" },
-    chrome.i18n.getMessage("removeImage"),
+    message("removeImage"),
   );
   removeButton.addEventListener("click", () => {
     image = null;
@@ -289,7 +290,7 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
   const picture = make(
     "fieldset",
     {},
-    make("legend", {}, chrome.i18n.getMessage("fieldImage")),
+    make("legend", {}, message("fieldImage")),
     make(
       "div",
       { className: "picture" },
@@ -298,7 +299,7 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
       photoInput,
       removeButton,
     ),
-    field(chrome.i18n.getMessage("fieldImageUrl"), imageUrl),
+    field(message("fieldImageUrl"), imageUrl),
     photoStatus,
   );
   // Layer: one of the reader's, or a new one named here.
@@ -307,16 +308,12 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
     "select",
     {},
     ...layers.map((layer) => make("option", { value: layer.id }, layer.name)),
-    make(
-      "option",
-      { value: NEW_LAYER },
-      chrome.i18n.getMessage("newLayerOption"),
-    ),
+    make("option", { value: NEW_LAYER }, message("newLayerOption")),
   );
   layerSelect.value = draft.layer ?? layers[0].id;
   const layerName = make("input", {
     type: "text",
-    placeholder: chrome.i18n.getMessage("newLayerName"),
+    placeholder: message("newLayerName"),
     hidden: true,
   });
   layerSelect.addEventListener("change", () => {
@@ -344,23 +341,19 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
   const save = make(
     "button",
     { type: "submit", className: "primary" },
-    chrome.i18n.getMessage("save"),
+    message("save"),
   );
-  const cancel = make(
-    "button",
-    { type: "button" },
-    chrome.i18n.getMessage("cancel"),
-  );
+  const cancel = make("button", { type: "button" }, message("cancel"));
   cancel.addEventListener("click", () => dialog.close());
   const buttons = make("div", { className: "buttons" });
   if (!isNew) {
     const remove = make(
       "button",
       { type: "button", className: "delete" },
-      chrome.i18n.getMessage("deleteEntry"),
+      message("deleteEntry"),
     );
     remove.addEventListener("click", async () => {
-      if (!confirm(chrome.i18n.getMessage("confirmDeleteEntry"))) return;
+      if (!confirm(message("confirmDeleteEntry"))) return;
       await deleteEntry(draft.id);
       dialog.close();
     });
@@ -372,8 +365,8 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
   const check = () => {
     const read = readTyped();
     dateStatus.textContent = read
-      ? chrome.i18n.getMessage("dateRead")
-      : chrome.i18n.getMessage("dateNotRead");
+      ? message("dateRead")
+      : message("dateNotRead");
     dateStatus.className = `status ${read ? "good" : "bad"}`;
     const named = layerSelect.value !== NEW_LAYER || layerName.value.trim();
     save.disabled = !read || !named;
@@ -381,26 +374,18 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
   dateInput.addEventListener("input", check);
 
   form.append(
-    field(chrome.i18n.getMessage("fieldDate"), dateInput, dateStatus),
-    make(
-      "span",
-      { className: "hint" },
-      chrome.i18n.getMessage("fieldDateHint"),
-    ),
-    field(chrome.i18n.getMessage("fieldTitle"), titleInput),
-    field(chrome.i18n.getMessage("fieldLink"), linkInput),
+    field(message("fieldDate"), dateInput, dateStatus),
+    make("span", { className: "hint" }, message("fieldDateHint")),
+    field(message("fieldTitle"), titleInput),
+    field(message("fieldLink"), linkInput),
     field(
-      chrome.i18n.getMessage("fieldDescription"),
+      message("fieldDescription"),
       description,
-      chrome.i18n.getMessage("fieldDescriptionHint"),
+      message("fieldDescriptionHint"),
     ),
     picture,
-    field(chrome.i18n.getMessage("fieldLayer"), layerSelect, layerName),
-    field(
-      chrome.i18n.getMessage("fieldTags"),
-      tagsInput,
-      chrome.i18n.getMessage("fieldTagsHint"),
-    ),
+    field(message("fieldLayer"), layerSelect, layerName),
+    field(message("fieldTags"), tagsInput, message("fieldTagsHint")),
     chips,
     buttons,
   );
@@ -408,9 +393,7 @@ export async function openEntryForm(root, { draft, isNew, languages }) {
     make(
       "h2",
       { id: "entry-form-title" },
-      isNew
-        ? chrome.i18n.getMessage("addToMyTimeline")
-        : chrome.i18n.getMessage("editEntry"),
+      isNew ? message("addToMyTimeline") : message("editEntry"),
     ),
     form,
   );

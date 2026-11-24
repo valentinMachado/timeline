@@ -19,11 +19,19 @@ to a file to carry it to another device.
 ```bash
 npm install
 npm test
-npm run build   # dist/chrome and dist/firefox, each loadable unpacked
+npm run build   # dist/chrome, dist/firefox (loadable unpacked) and dist/web
 ```
 
 Load it in Chrome from `chrome://extensions` (developer mode, _Load unpacked_,
 `dist/chrome`), in Firefox from `about:debugging#/runtime/this-firefox`
 (_Load Temporary Add-on_, `dist/firefox/manifest.json`).
+
+On a phone whose browser takes no extension (Chrome on Android), the same
+timeline is an installable site, published from `dist/web` to
+<https://valentinmachado.github.io/timeline/>: install it from the browser's
+menu, then share a Wikipedia article to it, or paste an address or a title.
+To try it locally, serve `dist/web` over HTTP (for instance
+`python -m http.server -d dist/web`). The article's text comes from
+Wikipedia under CC BY-SA 4.0, credited under it.
 
 Contributing: [CLAUDE.md](CLAUDE.md) and [docs/CONVENTIONS.md](docs/CONVENTIONS.md).

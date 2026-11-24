@@ -7,6 +7,7 @@
  * time, and `onTimelineChange` tells every page when it does.
  */
 
+import { message } from "#i18n";
 import {
   backupOf,
   keyOf,
@@ -16,7 +17,16 @@ import {
   parseKey,
 } from "../shared/myTimeline.js";
 
-const local = chrome.storage.local;
+/**
+ * The storage area, asked for when used rather than when the module loads:
+ * every picture is drawn through `pictures.js`, which imports this module,
+ * also where there is no extension API (the installable site).
+ *
+ * @returns {chrome.storage.StorageArea}
+ */
+function local() {
+  return chrome.storage.local;
+}
 
 /**
  * Every key of the timeline, without reading the values: `getKeys` where the
@@ -26,9 +36,9 @@ const local = chrome.storage.local;
  * @returns {Promise<{ key: string, kind: string, id: string }[]>}
  */
 async function storedKeys() {
-  const keys = local.getKeys
-    ? await local.getKeys()
-    : Object.keys(await local.get(null));
+  const keys = local().getKeys
+    ? await local().getKeys()
+    : Object.keys(await local().get(null));
   return keys
     .map((key) => ({ key, ...parseKey(key) }))
     .filter(({ kind }) => kind);
@@ -49,7 +59,9 @@ export function newId() {
  */
 export async function loadTimeline() {
   const keys = (await storedKeys()).filter(({ kind }) => kind !== "photo");
-  const values = keys.length ? await local.get(keys.map(({ key }) => key)) : {};
+  const values = keys.length
+    ? await local().get(keys.map(({ key }) => key))
+    : {};
   const of = (kind) =>
     keys.filter((k) => k.kind === kind).map(({ key }) => values[key]);
   return {
@@ -69,7 +81,7 @@ export async function layersOrDefault() {
   if (layers.length) return layers;
   const layer = newLayer({
     id: newId(),
-    name: chrome.i18n.getMessage("defaultLayerName"),
+    name: message("defaultLayerName"),
     count: 0,
     now: Date.now(),
   });
@@ -90,7 +102,7 @@ export async function saveEntry(entry, photo = null) {
   if (photo && entry.image?.photo) {
     writes[keyOf("photo", entry.image.photo)] = photo;
   }
-  await local.set(writes);
+  await local().set(writes);
   await prunePhotos();
 }
 
@@ -98,7 +110,7 @@ export async function saveEntry(entry, photo = null) {
  * @param {string} id
  */
 export async function deleteEntry(id) {
-  await local.remove(keyOf("entry", id));
+  await local().remove(keyOf("entry", id));
   await prunePhotos();
 }
 
@@ -106,7 +118,7 @@ export async function deleteEntry(id) {
  * @param {import("../shared/myTimeline.js").Layer} layer
  */
 export async function saveLayer(layer) {
-  await local.set({ [keyOf("layer", layer.id)]: layer });
+  await local().set({ [keyOf("layer", layer.id)]: layer });
 }
 
 /**
@@ -116,7 +128,7 @@ export async function saveLayer(layer) {
  */
 export async function deleteLayer(id) {
   const { entries } = await loadTimeline();
-  await local.remove([
+  await local().remove([
     keyOf("layer", id),
     ...entries.filter((e) => e.layer === id).map((e) => keyOf("entry", e.id)),
   ]);
@@ -135,7 +147,9 @@ export function loadPhoto(id) {
     const key = keyOf("photo", id);
     photos.set(
       id,
-      local.get(key).then((values) => values[key] ?? null),
+      local()
+        .get(key)
+        .then((values) => values[key] ?? null),
     );
   }
   return photos.get(id);
@@ -149,7 +163,7 @@ async function prunePhotos() {
   const { entries } = await loadTimeline();
   const orphans = orphanPhotos(ids, entries);
   if (orphans.length)
-    await local.remove(orphans.map((id) => keyOf("photo", id)));
+    await local().remove(orphans.map((id) => keyOf("photo", id)));
 }
 
 /**
@@ -160,7 +174,9 @@ async function prunePhotos() {
 export async function exportBackup() {
   const { layers, entries } = await loadTimeline();
   const keys = (await storedKeys()).filter(({ kind }) => kind === "photo");
-  const values = keys.length ? await local.get(keys.map(({ key }) => key)) : {};
+  const values = keys.length
+    ? await local().get(keys.map(({ key }) => key))
+    : {};
   const photoData = Object.fromEntries(
     keys.map(({ key, id }) => [id, values[key]]),
   );
@@ -177,10 +193,12 @@ export async function exportBackup() {
  */
 export async function importBackup(backup) {
   const keys = await storedKeys();
-  const values = keys.length ? await local.get(keys.map(({ key }) => key)) : {};
+  const values = keys.length
+    ? await local().get(keys.map(({ key }) => key))
+    : {};
   const writes = mergeBackup(values, backup);
   const count = Object.keys(writes).length;
-  if (count) await local.set(writes);
+  if (count) await local().set(writes);
   return count;
 }
 

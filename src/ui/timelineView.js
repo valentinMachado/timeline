@@ -14,6 +14,7 @@
  * `timelineLayout.js`; this file only draws it.
  */
 
+import { message, uiLanguage } from "#i18n";
 import {
   centerView,
   dragView,
@@ -295,10 +296,7 @@ export class TimelineView {
     this.element.className = "timeline";
     this.element.tabIndex = 0;
     this.element.setAttribute("role", "group");
-    this.element.setAttribute(
-      "aria-label",
-      chrome.i18n.getMessage("timelineLabel"),
-    );
+    this.element.setAttribute("aria-label", message("timelineLabel"));
     /** The graduations' layer, redrawn on every change. */
     this.axis = document.createElement("div");
     this.axis.className = "axis";
@@ -357,9 +355,9 @@ export class TimelineView {
     const box = document.createElement("div");
     box.className = "controls";
     const buttons = [
-      [chrome.i18n.getMessage("zoomOut"), "−", () => this.zoom(1 / ZOOM_STEP)],
-      [chrome.i18n.getMessage("zoomIn"), "+", () => this.zoom(ZOOM_STEP)],
-      [chrome.i18n.getMessage("zoomFit"), "⤢", () => this.fit()],
+      [message("zoomOut"), "−", () => this.zoom(1 / ZOOM_STEP)],
+      [message("zoomIn"), "+", () => this.zoom(ZOOM_STEP)],
+      [message("zoomFit"), "⤢", () => this.fit()],
     ];
     for (const [label, text, action] of buttons) {
       const button = document.createElement("button");
@@ -636,7 +634,7 @@ export class TimelineView {
       card.append(button);
     }
     if (item.article) {
-      const label = chrome.i18n.getMessage("openArticle");
+      const label = message("openArticle");
       const open = document.createElement("a");
       open.className = "action open";
       open.href = item.article;
@@ -655,7 +653,7 @@ export class TimelineView {
 }
 
 /** The reader's language, for numbers and month names. */
-const LOCALE = chrome.i18n.getUILanguage();
+const LOCALE = uiLanguage();
 
 const NUMBER = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 2 });
 
@@ -678,19 +676,19 @@ function yearNumber(year) {
  */
 function yearText(tick) {
   const year = yearNumber(tick.year);
-  return tick.bc ? chrome.i18n.getMessage("yearBc", [year]) : year;
+  return tick.bc ? message("yearBc", [year]) : year;
 }
 
 /** How each kind of graduation is labelled, in the reader's language. */
 const TICK_LABELS = {
   month: (tick) =>
-    chrome.i18n.getMessage("tickMonth", [
+    message("tickMonth", [
       MONTH.format(Date.UTC(2001, tick.month, 15)),
       yearText(tick),
     ]),
   year: yearText,
-  Myr: (tick) => chrome.i18n.getMessage("tickMyr", [NUMBER.format(tick.count)]),
-  Gyr: (tick) => chrome.i18n.getMessage("tickGyr", [NUMBER.format(tick.count)]),
+  Myr: (tick) => message("tickMyr", [NUMBER.format(tick.count)]),
+  Gyr: (tick) => message("tickGyr", [NUMBER.format(tick.count)]),
 };
 
 /**

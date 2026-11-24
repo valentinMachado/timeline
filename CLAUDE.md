@@ -28,7 +28,7 @@ a bug: fix the document in the same change.
 npm test               # node --test over test/**/*.test.js
 npm run lint           # eslint . — must be clean
 npm run format:check   # prettier — must be clean (npm run format to fix)
-npm run build          # dist/chrome and dist/firefox, each loadable unpacked
+npm run build          # dist/chrome, dist/firefox (loadable unpacked), dist/web (the site)
 npm run dev            # the same, rebuilt on every script change
 ```
 
@@ -91,7 +91,10 @@ Git
 
 ```
 src/manifest.js                the manifest, one source specialised per browser (Chrome, Firefox)
-src/content/wikipedia.js       content script: article → events; the banner (shadow DOM); + on a card, the selection button
+src/content/wikipedia.js       content script: the banner on Wikipedia, its "My timeline" button, + on a card, the selection button
+src/ui/articleTimeline.js      an article → events → the banner (shadow DOM), dates highlighted; extension and site alike
+src/ui/i18n.js                 #i18n in the extension: chrome.i18n (the site's is src/web/i18n.js)
+src/web/                       the installable site (PWA): app.js, sw.js, index.html, icons; manifest.js lists them
 src/background.js              opens the reader's timeline (toolbar button, banner's button)
 src/pages/mytimeline.{html,js} the reader's timeline: layers, tag filter, list, export / import
 src/ui/timelineView.js         a timeline drawn: axis, marks, cards; wheel, drag, pinch, keys; page's or reader's
@@ -108,8 +111,10 @@ src/shared/timeScale.js        a date as years; the window's zoom and pan; the g
 src/shared/timelineLayout.js   an event's or an entry's weight; which events get a card at a zoom, and where
 src/shared/myTimeline.js       the reader's timeline: entries, layers, tags, checks, backup merge
 src/shared/richText.js         a description with links written [text](url), as { text, links }
+src/shared/messages.js         messages.json read as chrome.i18n reads it; a manifest localised
 test/shared/fixtures/          real Wikipedia excerpts (CC BY-SA), revision cited
-scripts/build.js               esbuild: dist/chrome and dist/firefox; --watch for dev
+scripts/build.js               esbuild: dist/chrome, dist/firefox and dist/web; --watch for dev
+.github/workflows/pages.yml    publishes dist/web to GitHub Pages on a push to main
 test/                          mirrors src/
 management/                    backlog and plan, French, gitignored
 ```
@@ -136,5 +141,11 @@ thumbnail, a picture online, or a photo of the device). Its page, opened by
 the toolbar button or the banner, draws it coloured by layer (a card opens
 the page it was read in at its date, a text fragment), filters it by
 tag, lists it, and exports it to a file (photos included) that another
-device imports by merging. The plan, phase by phase, is
+device imports by merging. The same article timeline is an installable site
+(PWA) for Chrome on Android, which takes no extension: built from the same
+code into `dist/web`, published to GitHub Pages
+(`valentinmachado.github.io/timeline/`), it receives an article shared from
+the browser (Web Share Target) or typed, fetches its text (`action=parse`),
+and shows it under its timeline, credited under CC BY-SA; it keeps only
+itself offline, and has no reader's timeline yet. The plan, phase by phase, is
 `management/backlog/frise.md`.

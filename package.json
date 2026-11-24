@@ -4,6 +4,12 @@
   "private": true,
   "description": "Browser extension drawing an illustrated timeline from the dates of the page being read",
   "type": "module",
+  "imports": {
+    "#i18n": {
+      "web": "./src/web/i18n.js",
+      "default": "./src/ui/i18n.js"
+    }
+  },
   "scripts": {
     "build": "node scripts/build.js",
     "dev": "node scripts/build.js --watch",

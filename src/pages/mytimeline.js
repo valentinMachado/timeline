@@ -9,6 +9,7 @@
  * it whole.
  */
 
+import { message, uiLanguage } from "#i18n";
 import {
   eventOfEntry,
   newLayer,
@@ -183,7 +184,7 @@ const PAGE_STYLE = `
 `;
 
 /** The reader's language, to read a date typed in the form first. */
-const LANGUAGES = [chrome.i18n.getUILanguage().slice(0, 2)];
+const LANGUAGES = [uiLanguage().slice(0, 2)];
 
 /**
  * @param {string} tag
@@ -228,16 +229,12 @@ class MyTimelinePage {
     this.view = new TimelineView([], {
       action: {
         text: "✎",
-        label: chrome.i18n.getMessage("editEntry"),
+        label: message("editEntry"),
         run: (index) => this.edit(this.shown()[index]),
       },
     });
     /** The parts redrawn on every change. */
-    this.empty = make(
-      "p",
-      { className: "empty" },
-      chrome.i18n.getMessage("emptyTimeline"),
-    );
+    this.empty = make("p", { className: "empty" }, message("emptyTimeline"));
     this.panels = make("div", { className: "panels" });
 
     const importInput = make("input", {
@@ -253,13 +250,13 @@ class MyTimelinePage {
     const header = make(
       "header",
       {},
-      make("h1", {}, chrome.i18n.getMessage("myTimelineTitle")),
+      make("h1", {}, message("myTimelineTitle")),
       this.view.controls(),
-      button(chrome.i18n.getMessage("addEntry"), () => this.edit(null), {
+      button(message("addEntry"), () => this.edit(null), {
         className: "primary",
       }),
-      button(chrome.i18n.getMessage("exportButton"), () => this.export()),
-      button(chrome.i18n.getMessage("importButton"), () => importInput.click()),
+      button(message("exportButton"), () => this.export()),
+      button(message("importButton"), () => importInput.click()),
       importInput,
     );
     document
@@ -324,32 +321,32 @@ class MyTimelinePage {
       const save = (fields) =>
         saveLayer({ ...layer, ...fields, updated: Date.now() });
       const shown = make("input", { type: "checkbox", checked: !layer.hidden });
-      shown.title = chrome.i18n.getMessage("layerVisible");
+      shown.title = message("layerVisible");
       shown.setAttribute(
         "aria-label",
-        `${chrome.i18n.getMessage("layerVisible")} — ${layer.name}`,
+        `${message("layerVisible")} — ${layer.name}`,
       );
       shown.addEventListener("change", () => save({ hidden: !shown.checked }));
       const color = make("input", { type: "color", value: layer.color });
-      color.title = chrome.i18n.getMessage("layerColor");
+      color.title = message("layerColor");
       color.addEventListener("change", () => save({ color: color.value }));
       const name = make("input", { type: "text", value: layer.name });
-      name.setAttribute("aria-label", chrome.i18n.getMessage("layerName"));
+      name.setAttribute("aria-label", message("layerName"));
       name.addEventListener("change", () => {
         if (name.value.trim()) save({ name: name.value.trim() });
       });
       const count = entries.filter((entry) => entry.layer === layer.id).length;
       const remove = button("×", () => {
-        const question = chrome.i18n.getMessage("confirmDeleteLayer", [
+        const question = message("confirmDeleteLayer", [
           layer.name,
           String(count),
         ]);
         if (confirm(question)) deleteLayer(layer.id);
       });
-      remove.title = chrome.i18n.getMessage("deleteLayer");
+      remove.title = message("deleteLayer");
       remove.setAttribute(
         "aria-label",
-        `${chrome.i18n.getMessage("deleteLayer")} — ${layer.name}`,
+        `${message("deleteLayer")} — ${layer.name}`,
       );
       list.append(
         make(
@@ -365,13 +362,13 @@ class MyTimelinePage {
     }
     const newName = make("input", {
       type: "text",
-      placeholder: chrome.i18n.getMessage("newLayerName"),
+      placeholder: message("newLayerName"),
     });
     const add = make(
       "form",
       { className: "new-layer" },
       newName,
-      make("button", { type: "submit" }, chrome.i18n.getMessage("addLayer")),
+      make("button", { type: "submit" }, message("addLayer")),
     );
     add.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -384,7 +381,7 @@ class MyTimelinePage {
     return make(
       "section",
       {},
-      make("h2", {}, chrome.i18n.getMessage("layersHeading")),
+      make("h2", {}, message("layersHeading")),
       list,
       add,
     );
@@ -410,21 +407,17 @@ class MyTimelinePage {
     }
     if (this.picked.size) {
       chips.append(
-        button(chrome.i18n.getMessage("allTags"), () => {
+        button(message("allTags"), () => {
           this.picked.clear();
           this.render();
         }),
       );
     }
-    const section = make(
-      "section",
-      {},
-      make("h2", {}, chrome.i18n.getMessage("tagsHeading")),
-    );
+    const section = make("section", {}, make("h2", {}, message("tagsHeading")));
     section.append(
       tags.length
         ? chips
-        : make("p", { className: "count" }, chrome.i18n.getMessage("noTags")),
+        : make("p", { className: "count" }, message("noTags")),
     );
     return section;
   }
@@ -457,10 +450,10 @@ class MyTimelinePage {
       }
       const meta = [names.get(entry.layer), ...entry.tags].join(" · ");
       const edit = button("✎", () => this.edit(entry));
-      edit.title = chrome.i18n.getMessage("editEntry");
+      edit.title = message("editEntry");
       edit.setAttribute(
         "aria-label",
-        `${chrome.i18n.getMessage("editEntry")} — ${entry.title}`,
+        `${message("editEntry")} — ${entry.title}`,
       );
       list.append(
         make(
@@ -488,11 +481,7 @@ class MyTimelinePage {
     return make(
       "section",
       { className: "entries-panel" },
-      make(
-        "h2",
-        {},
-        chrome.i18n.getMessage("entriesHeading", [String(entries.length)]),
-      ),
+      make("h2", {}, message("entriesHeading", [String(entries.length)])),
       list,
     );
   }
@@ -520,7 +509,7 @@ class MyTimelinePage {
     const day = new Date().toISOString().slice(0, 10);
     make("a", { href: url, download: `timeline-${day}.json` }).click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    this.status.textContent = chrome.i18n.getMessage("exportDone", [
+    this.status.textContent = message("exportDone", [
       String(backup.entries.length),
     ]);
   }
@@ -533,21 +522,19 @@ class MyTimelinePage {
   async import(file) {
     try {
       const count = await importBackup(JSON.parse(await file.text()));
-      this.status.textContent = chrome.i18n.getMessage("importDone", [
-        String(count),
-      ]);
+      this.status.textContent = message("importDone", [String(count)]);
     } catch (error) {
       // A file the reader picked by mistake is not a bug.
       if (!(error instanceof SyntaxError || error instanceof TypeError)) {
         throw error;
       }
-      this.status.textContent = chrome.i18n.getMessage("importFailed");
+      this.status.textContent = message("importFailed");
     }
   }
 }
 
-document.title = chrome.i18n.getMessage("myTimelineTitle");
-document.documentElement.lang = chrome.i18n.getUILanguage();
+document.title = message("myTimelineTitle");
+document.documentElement.lang = uiLanguage();
 const style = document.createElement("style");
 style.textContent = PAGE_STYLE + TIMELINE_STYLE + FORM_STYLE;
 document.head.append(style);
